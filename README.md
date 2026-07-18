@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, sixteen ways to fall apart.
+One QR code, twenty-one ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -27,6 +27,11 @@ variant will encode it (the links pass it along as `?text=`).
 | [`anneal.html`](anneal.html) | The code becomes a cooling magnet; domains coarsen, round off, and one color conquers the board | Ising model under Metropolis dynamics, temperature falling through T_c; passing criticality erases most of the ink's minority disadvantage, so the winner is close to a coin flip |
 | [`bloom.html`](bloom.html) | The ink seeds a chemical garden and coral labyrinths bloom out of the code | Gray–Scott reaction-diffusion at coral-growth parameters (F=0.0545, k=0.062) on a 4× subgrid; done when the pattern stops changing |
 | [`mines.html`](mines.html) | The code becomes a minesweeper board and a sweeper plays it, opening the ink away cell by cell | Mines under a random 10% of cells; honest single-point deduction plus least-risk guessing (only the first click is guaranteed safe) — about 1 game in 4 ends in a boom |
+| [`svd.html`](svd.html) | The code is a 0/1 matrix that sheds its singular values down to rank 1, then rebuilds until it scans again | One-sided Jacobi SVD, inlined; U, Σ, Vᵀ rendered in grayscale; the picture walks the best rank-k approximations both ways |
+| [`mondrian.html`](mondrian.html) | The code composes itself into a Mondrian: lines rule themselves, then every field fills at once | Recursive cuts placed where the ink runs thickest; fields take red, blue, or yellow by ink share; a different composition for every text |
+| [`fold.html`](fold.html) | The sheet folds in half four times and the layers XOR — ink on ink cancels | 33×33 → 17×33 → 17×17 → 9×17 → 9×9; the crease keeps its single layer; what remains is the parity of the code |
+| [`twist.html`](twist.html) | Random square patches twist 90° left or right until the code is churned to noise | 4×4–8×8 patches rotate like a twisty puzzle, corners overhanging mid-turn; ink conserved; done when agreement with the original sits at chance |
+| [`blink.html`](blink.html) | Ink islands gray out, blink three times, and vanish — smallest first | 4-connected components removed in ascending size order; one decomposition up front stays exact because whole islands never merge |
 
 ## Notes
 

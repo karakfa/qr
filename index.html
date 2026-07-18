@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, sixteen ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-one ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -220,6 +220,46 @@
         <h2>QR <em>MINEFIELD</em></h2>
         <p>A sweeper plays minesweeper on the code; a tenth of the cells are mined.</p>
         <span class="tag">may go boom</span>
+      </div>
+    </a>
+    <a class="card" data-href="svd.html" href="svd.html">
+      <div class="thumbwrap"><canvas id="th-svd" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>SVD</em></h2>
+        <p>A = U&Sigma;V&#7488;: the code sheds singular values, then rebuilds.</p>
+        <span class="tag">rank 1 and back</span>
+      </div>
+    </a>
+    <a class="card" data-href="mondrian.html" href="mondrian.html">
+      <div class="thumbwrap"><canvas id="th-mondrian" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>MONDRIAN</em></h2>
+        <p>Black lines and primary planes compose themselves from the ink.</p>
+        <span class="tag">De Stijl</span>
+      </div>
+    </a>
+    <a class="card" data-href="fold.html" href="fold.html">
+      <div class="thumbwrap"><canvas id="th-fold" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>FOLD</em></h2>
+        <p>The sheet folds in half four times; the layers XOR through.</p>
+        <span class="tag">parity origami</span>
+      </div>
+    </a>
+    <a class="card" data-href="twist.html" href="twist.html">
+      <div class="thumbwrap"><canvas id="th-twist" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>TWIST</em></h2>
+        <p>Square patches twist 90&deg; until the code is churned to noise.</p>
+        <span class="tag">ink conserved</span>
+      </div>
+    </a>
+    <a class="card" data-href="blink.html" href="blink.html">
+      <div class="thumbwrap"><canvas id="th-blink" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>BLINK</em></h2>
+        <p>Ink islands blink three times and vanish, smallest first.</p>
+        <span class="tag">4-connected</span>
       </div>
     </a>
   </div>
@@ -619,6 +659,161 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         c.fillStyle = NUMC[nbm];
         c.fillText(String(nbm), xm + M + 0.5, ym + M + 0.55);
       }
+    }
+    c.fillStyle = '#000';
+  }
+
+  // SVD: the code seen at rank 6 — power iteration with deflation
+  c = ctx2d('th-svd');
+  if (c) {
+    var Aw = new Float64Array(n * n), R6 = new Float64Array(n * n);
+    for (var ys2 = 0; ys2 < n; ys2++) for (var xs2 = 0; xs2 < n; xs2++)
+      if (dark(xs2, ys2)) Aw[ys2 * n + xs2] = 1;
+    for (var rr2 = 0; rr2 < 6; rr2++) {
+      var vv2 = new Float64Array(n), uu2 = new Float64Array(n);
+      for (var iv2 = 0; iv2 < n; iv2++) vv2[iv2] = rnd() - 0.5;
+      for (var itp = 0; itp < 25; itp++) {
+        for (var iu = 0; iu < n; iu++) {
+          var su = 0;
+          for (var ju = 0; ju < n; ju++) su += Aw[iu * n + ju] * vv2[ju];
+          uu2[iu] = su;
+        }
+        var nv = 0;
+        for (var jv2 = 0; jv2 < n; jv2++) {
+          var sv2 = 0;
+          for (var iv3 = 0; iv3 < n; iv3++) sv2 += Aw[iv3 * n + jv2] * uu2[iv3];
+          vv2[jv2] = sv2; nv += sv2 * sv2;
+        }
+        nv = Math.sqrt(nv) || 1;
+        for (var jv3 = 0; jv3 < n; jv3++) vv2[jv3] /= nv;
+      }
+      for (var iu2 = 0; iu2 < n; iu2++) {
+        var su2 = 0;
+        for (var ju2 = 0; ju2 < n; ju2++) su2 += Aw[iu2 * n + ju2] * vv2[ju2];
+        for (var ju3 = 0; ju3 < n; ju3++) {
+          var cb6 = su2 * vv2[ju3];
+          R6[iu2 * n + ju3] += cb6;
+          Aw[iu2 * n + ju3] -= cb6;
+        }
+      }
+    }
+    for (var ys3 = 0; ys3 < n; ys3++) for (var xs3 = 0; xs3 < n; xs3++) {
+      var vg6 = Math.max(0, Math.min(1, R6[ys3 * n + xs3]));
+      var gg2 = Math.round(255 * (1 - vg6));
+      c.fillStyle = 'rgb(' + gg2 + ',' + gg2 + ',' + gg2 + ')';
+      c.fillRect(xs3 + M, ys3 + M, 1.02, 1.02);
+    }
+    c.fillStyle = '#000';
+  }
+
+  // MONDRIAN: a quick composition — recursive cuts, primaries, black rules
+  c = ctx2d('th-mondrian');
+  if (c) {
+    var rects = [[0, 0, n, n]];
+    for (var dm = 0; dm < 3; dm++) {
+      var nr = [];
+      for (var rm = 0; rm < rects.length; rm++) {
+        var rc = rects[rm];
+        var wv = rc[2] - rc[0], hv = rc[3] - rc[1];
+        if (wv >= 10 && wv >= hv) {
+          var cxm = rc[0] + 4 + ((rnd() * (wv - 8)) | 0);
+          nr.push([rc[0], rc[1], cxm, rc[3]], [cxm, rc[1], rc[2], rc[3]]);
+        } else if (hv >= 10) {
+          var cym = rc[1] + 4 + ((rnd() * (hv - 8)) | 0);
+          nr.push([rc[0], rc[1], rc[2], cym], [rc[0], cym, rc[2], rc[3]]);
+        } else nr.push(rc);
+      }
+      rects = nr;
+    }
+    for (var rm2 = 0; rm2 < rects.length; rm2++) {
+      var rc2 = rects[rm2];
+      var pm = rnd();
+      c.fillStyle = pm < 0.16 ? '#d40920' : pm < 0.32 ? '#1356a2'
+        : pm < 0.45 ? '#f7d842' : '#fff';
+      c.fillRect(rc2[0] + M, rc2[1] + M, rc2[2] - rc2[0], rc2[3] - rc2[1]);
+    }
+    c.fillStyle = '#111';
+    for (var rm3 = 0; rm3 < rects.length; rm3++) {
+      var rc3 = rects[rm3];
+      c.fillRect(rc3[0] + M - 0.35, rc3[1] + M - 0.35, rc3[2] - rc3[0] + 0.7, 0.7);
+      c.fillRect(rc3[0] + M - 0.35, rc3[1] + M - 0.35, 0.7, rc3[3] - rc3[1] + 0.7);
+    }
+    c.fillStyle = '#000';
+  }
+
+  // FOLD: the right half caught mid-flip onto the left
+  c = ctx2d('th-fold');
+  if (c) {
+    var kwf = Math.ceil(n / 2);
+    for (var yf = 0; yf < n; yf++) for (var xf = 0; xf < kwf; xf++)
+      if (dark(xf, yf)) px(c, xf, yf);
+    c.save();
+    var pvf = M + n / 2;
+    c.translate(pvf, 0); c.scale(-0.45, 1); c.translate(-pvf, 0);
+    c.globalAlpha = 0.88;
+    c.fillStyle = '#fff';
+    c.fillRect(M + kwf, M, n - kwf, n);
+    c.globalAlpha = 1;
+    c.fillStyle = '#000';
+    for (var yf2 = 0; yf2 < n; yf2++) for (var xf2 = kwf; xf2 < n; xf2++)
+      if (dark(xf2, yf2)) px(c, xf2, yf2);
+    c.restore();
+    c.fillStyle = '#dfa04c';
+    c.fillRect(pvf - 0.08, M, 0.16, n);
+    c.fillStyle = '#000';
+  }
+
+  // TWIST: one 7×7 patch lifted and caught mid-turn
+  c = ctx2d('th-twist');
+  if (c) {
+    var kt = 7, xt0 = ((n - kt) * 0.55) | 0, yt0 = ((n - kt) * 0.3) | 0;
+    for (var yt = 0; yt < n; yt++) for (var xt = 0; xt < n; xt++) {
+      if (xt >= xt0 && xt < xt0 + kt && yt >= yt0 && yt < yt0 + kt) continue;
+      if (dark(xt, yt)) px(c, xt, yt);
+    }
+    c.fillStyle = '#f3f2ef';
+    c.fillRect(xt0 + M, yt0 + M, kt, kt);
+    c.save();
+    var cxt = xt0 + M + kt / 2, cyt = yt0 + M + kt / 2;
+    c.translate(cxt, cyt); c.rotate(0.6); c.translate(-cxt, -cyt);
+    c.fillStyle = '#fff';
+    c.fillRect(xt0 + M, yt0 + M, kt, kt);
+    c.strokeStyle = 'rgba(0,0,0,0.25)';
+    c.lineWidth = 0.12;
+    c.strokeRect(xt0 + M, yt0 + M, kt, kt);
+    c.fillStyle = '#000';
+    for (var yt2 = yt0; yt2 < yt0 + kt; yt2++)
+      for (var xt2 = xt0; xt2 < xt0 + kt; xt2++)
+        if (dark(xt2, yt2)) px(c, xt2, yt2);
+    c.restore();
+    c.fillStyle = '#000';
+  }
+
+  // BLINK: smallest islands gone, size-3 islands graying mid-blink
+  c = ctx2d('th-blink');
+  if (c) {
+    var compb = new Int32Array(n * n), szb = [], stb = [];
+    for (var cb = 0; cb < n * n; cb++) compb[cb] = -1;
+    for (var sb = 0; sb < n * n; sb++) {
+      if (!dark(sb % n, (sb / n) | 0) || compb[sb] >= 0) continue;
+      var idb = szb.length, cntb = 0;
+      stb.push(sb); compb[sb] = idb;
+      while (stb.length) {
+        var ib = stb.pop(); cntb++;
+        var xb = ib % n, yb = (ib / n) | 0;
+        if (xb > 0 && dark(xb - 1, yb) && compb[ib - 1] < 0) { compb[ib - 1] = idb; stb.push(ib - 1); }
+        if (xb < n - 1 && dark(xb + 1, yb) && compb[ib + 1] < 0) { compb[ib + 1] = idb; stb.push(ib + 1); }
+        if (yb > 0 && dark(xb, yb - 1) && compb[ib - n] < 0) { compb[ib - n] = idb; stb.push(ib - n); }
+        if (yb < n - 1 && dark(xb, yb + 1) && compb[ib + n] < 0) { compb[ib + n] = idb; stb.push(ib + n); }
+      }
+      szb.push(cntb);
+    }
+    for (var gb2 = 0; gb2 < n * n; gb2++) {
+      if (compb[gb2] < 0) continue;
+      var szv = szb[compb[gb2]];
+      if (szv <= 2) continue;                  // already dissolved
+      c.fillStyle = szv === 3 ? '#a9a49c' : '#000';
+      c.fillRect(gb2 % n + M, ((gb2 / n) | 0) + M, 1.02, 1.02);
     }
     c.fillStyle = '#000';
   }
