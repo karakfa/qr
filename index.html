@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-two ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-three ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -268,6 +268,14 @@
         <h2>QR <em>JIGSAW</em></h2>
         <p>Ink blobs fly, turn, and flip into snug whitespace &mdash; until all one piece.</p>
         <span class="tag">self-solving</span>
+      </div>
+    </a>
+    <a class="card" data-href="flood.html" href="flood.html">
+      <div class="thumbwrap"><canvas id="th-flood" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>FLOOD</em></h2>
+        <p>Every whitespace pocket floods with color, then darkens to black.</p>
+        <span class="tag">flood fill</span>
       </div>
     </a>
   </div>
@@ -869,6 +877,39 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       for (var pj3 = 0; pj3 < pieceJ.length; pj3++)
         px(c, pieceJ[pj3] % n, (pieceJ[pj3] / n) | 0);
       c.restore();
+    }
+    c.fillStyle = '#000';
+  }
+
+  // FLOOD: every whitespace lake filled with its own color
+  c = ctx2d('th-flood');
+  if (c) {
+    var regF = new Int32Array(n * n), sizesF = [], qF = [];
+    for (var rf = 0; rf < n * n; rf++) regF[rf] = -1;
+    for (var sf = 0; sf < n * n; sf++) {
+      if (dark(sf % n, (sf / n) | 0) || regF[sf] >= 0) continue;
+      var idF = sizesF.length, cntF = 0, headF = 0;
+      qF.length = 0; qF.push(sf); regF[sf] = idF;
+      while (headF < qF.length) {
+        var iF = qF[headF++]; cntF++;
+        var xF = iF % n, yF = (iF / n) | 0;
+        if (xF > 0 && !dark(xF - 1, yF) && regF[iF - 1] < 0) { regF[iF - 1] = idF; qF.push(iF - 1); }
+        if (xF < n - 1 && !dark(xF + 1, yF) && regF[iF + 1] < 0) { regF[iF + 1] = idF; qF.push(iF + 1); }
+        if (yF > 0 && !dark(xF, yF - 1) && regF[iF - n] < 0) { regF[iF - n] = idF; qF.push(iF - n); }
+        if (yF < n - 1 && !dark(xF, yF + 1) && regF[iF + n] < 0) { regF[iF + n] = idF; qF.push(iF + n); }
+      }
+      sizesF.push(cntF);
+    }
+    var orderF = sizesF.map(function (_, i2) { return i2; });
+    orderF.sort(function (a, b) { return sizesF[a] - sizesF[b]; });
+    var hueF = new Float32Array(sizesF.length);
+    for (var qf2 = 0; qf2 < orderF.length; qf2++)
+      hueF[orderF[qf2]] = (qf2 * 137.508) % 360;
+    for (var gf = 0; gf < n * n; gf++) {
+      var xg = gf % n, yg = (gf / n) | 0;
+      if (regF[gf] < 0) { c.fillStyle = '#000'; px(c, xg, yg); continue; }
+      c.fillStyle = 'hsl(' + hueF[regF[gf]].toFixed(0) + ',70%,68%)';
+      px(c, xg, yg);
     }
     c.fillStyle = '#000';
   }
