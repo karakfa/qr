@@ -79,7 +79,7 @@
 <body>
 <main>
   <h1>QR <span>FOLD</span></h1>
-  <p class="sub">Scan it quick &mdash; then the sheet folds in half, over and over, and the ink bleeds through: each fold ORs the layers until a near-solid square remains.</p>
+  <p class="sub">Scan it quick &mdash; then the sheet folds in half, over and over, and the layers XOR as they land: ink on ink cancels, and a scrambled parity ghost remains.</p>
   <div class="panel"><canvas id="board"></canvas></div>
   <div class="controls">
     <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Origami" aria-label="Text to encode">
@@ -102,12 +102,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 <script>
 /*
- * QR fold — the code folds in half like paper, and the ink bleeds
- * through: wherever either layer is black, the folded sheet is black
- * (OR). Vertical axis first, then horizontal, alternating four times:
- * 33×33 → 17×33 → 17×17 → 9×17 → 9×9. Odd sizes stay odd because the
- * center line folds onto itself. By the last fold the sheet is almost
- * pure ink.
+ * QR fold — the code folds in half like paper, and the layers XOR:
+ * ink on ink cancels, ink on paper stays. The crease line folds onto
+ * itself, so it keeps its single layer unchanged. Vertical axis first,
+ * then horizontal, alternating four times: 33×33 → 17×33 → 17×17 →
+ * 9×17 → 9×9. What remains is the parity of the code — a scrambled
+ * ghost, about half ink.
  * cfg: {dark: [[x,y]...], n, foldT, settleT, folds}
  */
 function createFoldSim(cfg) {
@@ -136,8 +136,15 @@ function createFoldSim(cfg) {
     for (var y = 0; y < nh; y++)
       for (var x = 0; x < nw; x++) {
         var v = grid[y * w + x];
-        if (axis === 'V') v |= grid[y * w + (w - 1 - x)];
-        else v |= grid[(h - 1 - y) * w + x];
+        // XOR with the folded-over layer; the crease (its own mirror)
+        // stays a single layer and keeps its ink
+        if (axis === 'V') {
+          var mx = w - 1 - x;
+          if (mx !== x) v ^= grid[y * w + mx];
+        } else {
+          var my = h - 1 - y;
+          if (my !== y) v ^= grid[my * w + x];
+        }
         out[y * nw + x] = v;
       }
     grid = out; w = nw; h = nh;
@@ -356,10 +363,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createFold
             + Math.round(100 * sim.inkFrac()) + '%');
       } else {
         phase = 'done';
-        var ink = sim.inkFrac();
         setStatus('folded ' + sim.stats().folds + '× · '
-          + sim.w() + '×' + sim.h() + ' · ink ' + Math.round(100 * ink) + '%'
-          + (ink > 0.99 ? ' — solid ink' : ' — nearly solid ink'));
+          + sim.w() + '×' + sim.h() + ' · ink '
+          + Math.round(100 * sim.inkFrac()) + '% — the parity of the code');
       }
     }
     requestAnimationFrame(frame);
