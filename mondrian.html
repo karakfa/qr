@@ -118,7 +118,7 @@ function createMondrianSim(cfg) {
   var FADE = 2.0;     // seconds: code fades to a ghost
   var LINE = 1.1;     // seconds per line drawn
   var GAPT = 0.4;     // pause between lines and fills
-  var FILL = 0.7;     // seconds per field painted
+  var FILL = 2.5;     // seconds: all fields painted together
   var MINSZ = 5;      // smallest field side, in modules; cuts keep this margin
 
   var darkGrid = new Uint8Array(n * n);
@@ -187,18 +187,9 @@ function createMondrianSim(cfg) {
   for (var c2 = 0; c2 < colored && c2 < leaves.length; c2++)
     leaves[idx[c2]].color = PRIM[c2 % 3];
 
-  // painting order: shuffled, so color arrives scattered, not sorted
-  var order = [];
-  for (var o = 0; o < leaves.length; o++) order.push(o);
-  for (var f = order.length - 1; f > 0; f--) {
-    var j = (rand() * (f + 1)) | 0;
-    var tmp = order[f]; order[f] = order[j]; order[j] = tmp;
-  }
-  for (var r = 0; r < order.length; r++) leaves[order[r]].order = r;
-
   var linesStart = FADE * 0.6;   // lines begin while the ghost still fades
   var fillsStart = linesStart + lines.length * LINE + GAPT;
-  var total = fillsStart + leaves.length * FILL + 0.6;
+  var total = fillsStart + FILL + 0.6;
   var t = 0;
 
   function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
@@ -208,8 +199,8 @@ function createMondrianSim(cfg) {
     lines: lines, leaves: leaves, n: n,
     fadeProg: function () { return clamp01(t / FADE); },
     lineProg: function (i) { return clamp01((t - linesStart - i * LINE) / LINE); },
-    fillProg: function (i) {
-      return clamp01((t - fillsStart - leaves[i].order * FILL) / FILL);
+    fillProg: function () {    // all fields wipe in together
+      return clamp01((t - fillsStart) / FILL);
     },
     stats: function () { return { t: t, lines: lines.length, fields: leaves.length }; },
     done: function () { return t >= total; }
@@ -292,10 +283,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createMond
     for (var d2 = 0; d2 < darkList.length; d2++)
       ctx.fillRect(darkList[d2][0] + M, darkList[d2][1] + M, 1.01, 1.01);
 
-    // fields, each wiping outward from its center
-    for (var f = 0; f < sim.leaves.length; f++) {
-      var p = ease(sim.fillProg(f));
-      if (p <= 0) continue;
+    // fields, all wiping outward from their centers together
+    var fillP = ease(sim.fillProg());
+    for (var f = 0; fillP > 0 && f < sim.leaves.length; f++) {
+      var p = fillP;
       var lf = sim.leaves[f];
       var w = (lf.x1 - lf.x0) * p, h = (lf.y1 - lf.y0) * p;
       var cx = (lf.x0 + lf.x1) / 2, cy = (lf.y0 + lf.y1) / 2;
@@ -350,15 +341,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createMond
       if (dt > 0) sim.step(dt);
       draw();
       if (!sim.done()) {
-        var linesDone = 0, fieldsDone = 0;
+        var linesDone = 0;
         for (var l = 0; l < sim.lines.length; l++)
           if (sim.lineProg(l) >= 1) linesDone++;
-        for (var f = 0; f < sim.leaves.length; f++)
-          if (sim.fillProg(f) >= 1) fieldsDone++;
         if (linesDone < sim.lines.length)
           setStatus('ruling the lines · ' + linesDone + '/' + sim.lines.length);
         else
-          setStatus('filling the fields · ' + fieldsDone + '/' + sim.leaves.length);
+          setStatus('filling the fields · '
+            + Math.round(100 * sim.fillProg()) + '%');
       } else {
         phase = 'done';
         var st = sim.stats();
