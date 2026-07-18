@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-three ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-four ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -276,6 +276,14 @@
         <h2>QR <em>FLOOD</em></h2>
         <p>Every whitespace pocket floods with color, then darkens to black.</p>
         <span class="tag">flood fill</span>
+      </div>
+    </a>
+    <a class="card" data-href="kufic.html" href="kufic.html">
+      <div class="thumbwrap"><canvas id="th-kufic" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>KUFIC</em></h2>
+        <p>A pen rewrites the code as square Kufic &mdash; the same string, woven.</p>
+        <span class="tag">banna&rsquo;i</span>
       </div>
     </a>
   </div>
@@ -912,6 +920,58 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       px(c, xg, yg);
     }
     c.fillStyle = '#000';
+  }
+
+  // KUFIC: the input text rendered as woven square-kufic bands
+  c = ctx2d('th-kufic');
+  if (c) {
+    var FK = {
+      a:['###','..#','###','#.#'],b:['#..','#..','###','#.#'],
+      c:['###','#..','#..','#..'],d:['..#','..#','###','#.#'],
+      e:['###','#.#','###','#..'],f:['###','#..','##.','#..'],
+      g:['###','#..','#.#','#.#'],h:['#..','#..','###','#.#'],
+      i:['.#.','...','.#.','.#.'],j:['..#','...','..#','..#'],
+      k:['#.#','##.','#.#','#.#'],l:['#..','#..','#..','#..'],
+      m:['###','###','#.#','#.#'],n:['##.','#.#','#.#','#.#'],
+      o:['###','#.#','#.#','###'],p:['###','#.#','###','#..'],
+      q:['###','#.#','###','..#'],r:['###','#.#','##.','#.#'],
+      s:['###','#..','###','..#'],t:['###','.#.','.#.','.#.'],
+      u:['#.#','#.#','#.#','###'],v:['#.#','#.#','#.#','.#.'],
+      w:['#.#','#.#','###','###'],x:['#.#','.#.','.#.','#.#'],
+      y:['#.#','#.#','.#.','.#.'],z:['###','..#','#..','###'],
+      0:['###','#.#','#.#','###'],1:['##.','.#.','.#.','.#.'],
+      2:['###','..#','###','#..'],3:['###','..#','###','..#'],
+      4:['#.#','#.#','###','..#'],5:['###','#..','###','..#'],
+      6:['###','#..','###','#.#'],7:['###','..#','..#','..#'],
+      8:['###','#.#','###','#.#'],9:['###','#.#','###','..#'],
+      ':':['...','.#.','...','.#.'],'.':['...','...','...','.#.'],
+      '/':['..#','..#','#..','#..'],'-':['...','...','###','...']
+    };
+    var FBK = ['###','#.#','#.#','###'];
+    var txtK = (input.value || ' ').toLowerCase();
+    var perK = Math.floor((n + 1) / 4), maxLK = Math.floor((n + 1) / 6);
+    var linesK = [];
+    for (var lk = 0; lk < txtK.length && linesK.length < maxLK; lk += perK)
+      linesK.push(txtK.slice(lk, lk + perK));
+    var y0K = Math.max(0, (n - (linesK.length * 6 - 1)) >> 1);
+    c.fillStyle = '#000';
+    for (var liK = 0; liK < linesK.length; liK++) {
+      var lineK = linesK[liK];
+      var x0K = Math.max(0, (n - (lineK.length * 4 - 1)) >> 1);
+      var byK = y0K + liK * 6;
+      for (var giK = 0; giK < lineK.length; giK++) {
+        var chK = lineK[giK], gxK = x0K + giK * 4;
+        if (chK === ' ') continue;
+        var bodyK = FK[chK] || FBK;
+        for (var ryK = 0; ryK < 4; ryK++)
+          for (var rxK = 0; rxK < 3; rxK++)
+            if (bodyK[ryK].charAt(rxK) === '#' && gxK + rxK < n && byK + ryK < n)
+              px(c, gxK + rxK, byK + ryK);
+        var conK = giK < lineK.length - 1 && lineK[giK + 1] !== ' ';
+        for (var bxK = 0; bxK < (conK ? 4 : 3); bxK++)
+          if (gxK + bxK < n && byK + 4 < n) px(c, gxK + bxK, byK + 4);
+      }
+    }
   }
   }
 
