@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Heat Death</title>
+<title>QR Ant Farm</title>
 <style>
   :root {
     --bg: #14161a;
@@ -40,7 +40,7 @@
     line-height: 0;
     max-width: 100%;
   }
-  canvas { max-width: 100%; height: auto; }
+  canvas { max-width: 100%; height: auto; image-rendering: pixelated; }
   .controls {
     display: flex;
     gap: 10px;
@@ -78,13 +78,13 @@
 </head>
 <body>
 <main>
-  <h1>QR <span>HEAT DEATH</span></h1>
-  <p class="sub">Scan it quick &mdash; then the ink obeys the heat equation until only an even gray remains. Nothing is lost, only forgotten.</p>
+  <h1>QR <span>ANT FARM</span></h1>
+  <p class="sub">Scan it quick &mdash; in a few seconds Langton&rsquo;s ants get loose in the code. The board wraps; they never really leave.</p>
   <div class="panel"><canvas id="board"></canvas></div>
   <div class="controls">
-    <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Heat_equation" aria-label="Text to encode">
+    <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Langton's_ant" aria-label="Text to encode">
     <button id="restart">Restart</button>
-    <button id="blur">Blur now</button>
+    <button id="release">Release now</button>
   </div>
   <div id="status"></div>
 </main>
@@ -102,87 +102,74 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 <script>
 /*
- * QR heat death — the ink density field evolves under the heat equation
- * (repeated Gaussian blur IS diffusion: u_t = D * laplacian(u)).
- * Zero-flux boundaries conserve the ink exactly, so the final state is a
- * uniform gray at the code's own mean ink density: maximum entropy.
- * D ramps up over time so the slowest mode dies within a minute.
- * cfg: {dark: [[x,y]...], n, margin, sub, D0, ramp}
+ * QR ant farm — Langton's ants on the code. Each ant: white cell means
+ * turn right, black means turn left; flip the cell, step forward. The
+ * board is a torus, so the ants never leave: they chew chaos through
+ * the code forever, building the occasional highway and eating it
+ * again. The step rate ramps so the early moves read.
+ * cfg: {dark: [[x,y]...], n, margin, ants, rand, rate0, rateMax}
  */
-function createHeatSim(cfg) {
+function createAntSim(cfg) {
   'use strict';
   var n = cfg.n;
   var m = cfg.margin || 2;
-  var SUB = cfg.sub || 4;                 // field samples per module side
-  var W = (n + 2 * m) * SUB;
-  var D0 = cfg.D0 || 5;                   // diffusivity, subcells^2/s
-  var RAMP = cfg.ramp || 20;              // D(t) = D0 * (1 + (t/RAMP)^2)
-  var DONE_DEV = cfg.doneDev || 0.02;     // flat enough: max |u - mean| below this
+  var W = n + 2 * m;
+  var rand = cfg.rand || Math.random;
+  var RATE0 = cfg.rate0 || 60;            // steps/s per ant at release
+  var RATEMAX = cfg.rateMax || 1500;
+  var DOUBLE_EVERY = 2.5;                 // seconds per rate doubling
 
-  var u = new Float32Array(W * W);
-  var v = new Float32Array(W * W);
-  for (var d = 0; d < cfg.dark.length; d++) {
-    var mx = cfg.dark[d][0], my = cfg.dark[d][1];
-    for (var sy = 0; sy < SUB; sy++)
-      for (var sx = 0; sx < SUB; sx++)
-        u[((my + m) * SUB + sy) * W + (mx + m) * SUB + sx] = 1;
-  }
-  var totalInk = 0;
-  for (var g = 0; g < W * W; g++) totalInk += u[g];
-  var mean = totalInk / (W * W);
+  var grid = new Uint8Array(W * W);       // 1 = black
+  for (var d = 0; d < cfg.dark.length; d++)
+    grid[(cfg.dark[d][1] + m) * W + (cfg.dark[d][0] + m)] = 1;
+  var original = grid.slice();
 
-  var t = 0, sigma2 = 0, finished = false;
-
-  function substep(a) {                   // one explicit step, du = a * lap(u)
-    for (var y = 0; y < W; y++) {
-      var up = y > 0 ? -W : 0, dn = y < W - 1 ? W : 0;
-      var row = y * W;
-      for (var x = 0; x < W; x++) {
-        var i = row + x;
-        var c = u[i];
-        var lap = (x > 0 ? u[i - 1] : c) + (x < W - 1 ? u[i + 1] : c)
-                + u[i + up] + u[i + dn] - 4 * c;
-        v[i] = c + a * lap;
-      }
-    }
-    var tmp = u; u = v; v = tmp;
+  // ants start on random dark modules, random headings
+  var DX = [0, 1, 0, -1], DY = [-1, 0, 1, 0];   // N E S W
+  var count = cfg.ants || 3;
+  var ants = [];
+  for (var a = 0; a < count; a++) {
+    var pick = cfg.dark[(rand() * cfg.dark.length) | 0];
+    ants.push({ x: pick[0] + m, y: pick[1] + m, dir: (rand() * 4) | 0 });
   }
 
-  function maxDev() {
-    var md = 0;
-    for (var i = 0; i < W * W; i++) {
-      var dv = u[i] - mean;
-      if (dv < 0) dv = -dv;
-      if (dv > md) md = dv;
-    }
-    return md;
+  var t = 0, acc = 0, steps = 0, flips = 0;
+
+  function stepAnt(ant) {
+    var g = ant.y * W + ant.x;
+    var black = grid[g];
+    ant.dir = (ant.dir + (black ? 3 : 1)) & 3;  // black: left, white: right
+    grid[g] = black ? 0 : 1;
+    flips++;
+    ant.x = (ant.x + DX[ant.dir] + W) % W;      // torus: nobody leaves
+    ant.y = (ant.y + DY[ant.dir] + W) % W;
   }
 
   return {
     step: function (dt) {
-      if (finished) return;
-      var D = D0 * (1 + (t / RAMP) * (t / RAMP));
-      var steps = Math.max(1, Math.ceil(D * dt / 0.24));
-      var h = dt / steps;
-      for (var s = 0; s < steps; s++) substep(D * h);
       t += dt;
-      sigma2 += 2 * D * dt;
-      if (maxDev() < DONE_DEV) finished = true;
+      var rate = Math.min(RATEMAX, RATE0 * Math.pow(2, t / DOUBLE_EVERY));
+      acc += rate * dt;
+      var todo = acc | 0;
+      acc -= todo;
+      for (var s = 0; s < todo; s++) {
+        for (var i = 0; i < ants.length; i++) stepAnt(ants[i]);
+        steps++;
+      }
     },
-    field: function () { return u; },
-    W: W, SUB: SUB, mean: mean,
-    time: function () { return t; },
-    sigmaModules: function () { return Math.sqrt(sigma2) / SUB; },
-    contrast: function () { return maxDev(); },
-    inkSum: function () {
-      var s = 0;
-      for (var i = 0; i < W * W; i++) s += u[i];
-      return s;
+    grid: grid, W: W, m: m, n: n,
+    ants: ants,
+    rewrittenFrac: function () {
+      var diff = 0;
+      for (var y = 0; y < n; y++)
+        for (var x = 0; x < n; x++)
+          if (grid[(y + m) * W + (x + m)] !== original[(y + m) * W + (x + m)]) diff++;
+      return diff / (n * n);
     },
-    done: function () { return finished; }
+    stats: function () { return { steps: steps, flips: flips, ants: ants.length, t: t }; }
   };
 }
-if (typeof module !== 'undefined' && module.exports) module.exports = createHeatSim;
+if (typeof module !== 'undefined' && module.exports) module.exports = createAntSim;
 
 </script>
 
@@ -204,13 +191,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHeat
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var sim = null;
-  var phase = 'hold';   // 'hold' | 'play' | 'done'
+  var phase = 'hold';   // 'hold' | 'play'
   var holdStart = 0, lastFrame = 0;
-  var off = null, octx = null, img = null, cssPx = 444;
+  var cell = 12;
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg;
     statusEl.className = isErr ? 'err' : '';
+  }
+
+  function fmt(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
 
   function buildSim(text) {
@@ -222,35 +213,31 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHeat
     for (var y = 0; y < n; y++)
       for (var x = 0; x < n; x++)
         if (qr.isDark(y, x)) dark.push([x, y]);
-    sim = createHeatSim({ dark: dark, n: n });
+    sim = createAntSim({ dark: dark, n: n });
   }
 
   function sizeCanvas() {
-    var W = sim.W;
-    cssPx = W * Math.max(1, Math.floor(560 / W));
+    cell = Math.max(4, Math.floor(560 / sim.W));
+    var px = sim.W * cell;
     var dpr = window.devicePixelRatio || 1;
-    canvas.width = cssPx * dpr;
-    canvas.height = cssPx * dpr;
-    canvas.style.width = cssPx + 'px';
+    canvas.width = px * dpr;
+    canvas.height = px * dpr;
+    canvas.style.width = px + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    off = document.createElement('canvas');
-    off.width = W;
-    off.height = W;
-    octx = off.getContext('2d');
-    img = octx.createImageData(W, W);
   }
 
   function draw() {
-    var W = sim.W, u = sim.field(), data = img.data;
-    for (var i = 0; i < W * W; i++) {
-      var g = 255 - Math.max(0, Math.min(255, Math.round(255 * u[i])));
-      var o = i * 4;
-      data[o] = g; data[o + 1] = g; data[o + 2] = g; data[o + 3] = 255;
+    var W = sim.W;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = '#000';
+    for (var g = 0; g < W * W; g++)
+      if (sim.grid[g]) ctx.fillRect(g % W, (g / W) | 0, 1, 1);
+    if (phase === 'play') {
+      ctx.fillStyle = '#dfa04c';
+      for (var i = 0; i < sim.ants.length; i++)
+        ctx.fillRect(sim.ants[i].x, sim.ants[i].y, 1, 1);
     }
-    octx.putImageData(img, 0, 0);
-    // crisp while scannable, soft once the blur is under way
-    ctx.imageSmoothingEnabled = phase !== 'hold';
-    ctx.drawImage(off, 0, 0, W, W, 0, 0, cssPx, cssPx);
   }
 
   function restart() {
@@ -264,7 +251,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHeat
     holdStart = performance.now();
     sizeCanvas();
     draw();
-    if (reducedMotion) setStatus('press "Blur now" when ready');
+    if (reducedMotion) setStatus('press "Release now" when ready');
   }
 
   function startPlay() {
@@ -278,27 +265,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHeat
     if (phase === 'hold' && !reducedMotion) {
       var left = HOLD_MS - (now - holdStart);
       if (left <= 0) startPlay();
-      else setStatus('heat death in ' + Math.ceil(left / 1000) + '…');
+      else setStatus('ants in ' + Math.ceil(left / 1000) + '…');
     }
     if (phase === 'play') {
       var dt = Math.min((now - lastFrame) / 1000, 1 / 30);
       lastFrame = now;
       if (dt > 0) sim.step(dt);
       draw();
-      if (!sim.done()) {
-        setStatus('diffusing · σ ≈ ' + sim.sigmaModules().toFixed(1)
-          + ' modules · contrast ' + Math.round(sim.contrast() * 100) + '%');
-      } else {
-        phase = 'done';
-        setStatus('heat death · uniform ' + Math.round(sim.mean * 100)
-          + '% gray · every drop of ink accounted for');
-      }
+      var st = sim.stats();
+      setStatus(st.ants + ' ants · ' + fmt(st.steps) + ' steps · '
+        + Math.round(sim.rewrittenFrac() * 100) + '% of the code rewritten');
     }
     requestAnimationFrame(frame);
   }
 
   document.getElementById('restart').addEventListener('click', restart);
-  document.getElementById('blur').addEventListener('click', startPlay);
+  document.getElementById('release').addEventListener('click', startPlay);
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') restart();
   });

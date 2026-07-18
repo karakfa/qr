@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, nine ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, ten ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -164,6 +164,14 @@
         <h2>QR <em>HEAT DEATH</em></h2>
         <p>Gaussian blur smears the code into a uniform gray.</p>
         <span class="tag">∂u/∂t = D ∇²u</span>
+      </div>
+    </a>
+    <a class="card" data-href="ant.html" href="ant.html">
+      <div class="thumbwrap"><canvas id="th-ant" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>ANT FARM</em></h2>
+        <p>Langton’s ants chew chaos and highways through the code.</p>
+        <span class="tag">turmites</span>
       </div>
     </a>
   </div>
@@ -339,6 +347,28 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       c.fillStyle = 'rgb(' + gv + ',' + gv + ',' + gv + ')';
       c.fillRect(xg + M, yg + M, 1.02, 1.02);
     }
+  }
+
+  // ANT FARM: an actual Langton's ant, 2500 steps into the code (torus)
+  c = ctx2d('th-ant');
+  if (c) {
+    var ag = new Uint8Array(n * n);
+    for (var ya = 0; ya < n; ya++) for (var xa = 0; xa < n; xa++)
+      if (dark(xa, ya)) ag[ya * n + xa] = 1;
+    var ax = n >> 1, ay = n >> 1, ad = 0;
+    var ADX = [0, 1, 0, -1], ADY = [-1, 0, 1, 0];
+    for (var as = 0; as < 2500; as++) {
+      var ai = ay * n + ax;
+      ad = (ad + (ag[ai] ? 3 : 1)) & 3;
+      ag[ai] ^= 1;
+      ax = (ax + ADX[ad] + n) % n;
+      ay = (ay + ADY[ad] + n) % n;
+    }
+    c.fillStyle = '#000';
+    for (var yz = 0; yz < n; yz++) for (var xz = 0; xz < n; xz++)
+      if (ag[yz * n + xz]) px(c, xz, yz);
+    c.fillStyle = '#dfa04c';
+    px(c, ax, ay);
   }
   }
 
