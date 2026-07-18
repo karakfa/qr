@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-four ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-five ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -284,6 +284,14 @@
         <h2>QR <em>KUFIC</em></h2>
         <p>The ink resettles as square Kufic &mdash; the same string, the same ink.</p>
         <span class="tag">banna&rsquo;i</span>
+      </div>
+    </a>
+    <a class="card" data-href="labyrinth.html" href="labyrinth.html">
+      <div class="thumbwrap"><canvas id="th-labyrinth" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>LABYRINTH</em></h2>
+        <p>A lone module wakes up orange and walks every corridor it can reach.</p>
+        <span class="tag">depth-first</span>
       </div>
     </a>
   </div>
@@ -972,6 +980,56 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           if (gxK + bxK < n && byK + 4 < n) px(c, gxK + bxK, byK + 4);
       }
     }
+  }
+
+  // LABYRINTH: the wanderer mid-walk, breadcrumbs behind it
+  c = ctx2d('th-labyrinth');
+  if (c) {
+    for (var yL = 0; yL < n; yL++) for (var xL = 0; xL < n; xL++)
+      if (dark(xL, yL)) px(c, xL, yL);
+    // find a lone module with free neighbors
+    var homeL = -1;
+    for (var sL = 0; sL < n * n && homeL < 0; sL++) {
+      var hxL = sL % n, hyL = (sL / n) | 0;
+      if (!dark(hxL, hyL)) continue;
+      if (hxL > 0 && dark(hxL - 1, hyL)) continue;
+      if (hxL < n - 1 && dark(hxL + 1, hyL)) continue;
+      if (hyL > 0 && dark(hxL, hyL - 1)) continue;
+      if (hyL < n - 1 && dark(hxL, hyL + 1)) continue;
+      if (hxL > 2 && hxL < n - 3 && hyL > 2 && hyL < n - 3) homeL = sL;
+    }
+    if (homeL >= 0) {
+      // vacate home, then a short depth-first wander
+      c.fillStyle = '#fff';
+      px(c, homeL % n, (homeL / n) | 0);
+      var visL = {}, stkL = [homeL], trailL = [homeL], curL = homeL;
+      visL[homeL] = 1;
+      for (var wL = 0; wL < 42 && stkL.length; wL++) {
+        var cxL = curL % n, nxtL = -1;
+        var dirsL = [1, -1, n, -n];
+        for (var dL = 3; dL > 0; dL--) {
+          var jL = (rnd() * (dL + 1)) | 0;
+          var tL = dirsL[dL]; dirsL[dL] = dirsL[jL]; dirsL[jL] = tL;
+        }
+        for (var kL = 0; kL < 4; kL++) {
+          var ddL = dirsL[kL], t2L = curL + ddL;
+          if (ddL === 1 && cxL === n - 1) continue;
+          if (ddL === -1 && cxL === 0) continue;
+          if (t2L < 0 || t2L >= n * n || visL[t2L]) continue;
+          if (t2L !== homeL && dark(t2L % n, (t2L / n) | 0)) continue;
+          nxtL = t2L;
+          break;
+        }
+        if (nxtL >= 0) { visL[nxtL] = 1; stkL.push(nxtL); curL = nxtL; trailL.push(curL); }
+        else { stkL.pop(); if (stkL.length) curL = stkL[stkL.length - 1]; }
+      }
+      c.fillStyle = 'rgba(236,127,31,0.3)';
+      for (var pL = 0; pL < trailL.length; pL++)
+        px(c, trailL[pL] % n, (trailL[pL] / n) | 0);
+      c.fillStyle = '#ec7f1f';
+      px(c, curL % n, (curL / n) | 0);
+    }
+    c.fillStyle = '#000';
   }
   }
 
