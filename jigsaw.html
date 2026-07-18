@@ -116,7 +116,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * touching ink; a
  * broken-off piece must touch two — it gave up one contact by
  * breaking — so total contact grows every move and the process
- * provably stops. Ink is conserved.
+ * provably stops. When those rules stall, a final compaction phase
+ * lifts the 16-cell cap and moves the remaining separate blobs whole,
+ * merging the continents themselves. Ink is conserved.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createJigsawSim(cfg) {
@@ -312,13 +314,14 @@ function createJigsawSim(cfg) {
   // ---- plan the whole solve, re-reading the board every move ----
   var board = Uint8Array.from(grid);
   var moves = [];
+  var relaxed = false;      // final compaction: the 16-cell cap is lifted
   for (var guard = 0; guard < 3000; guard++) {
     var comps = componentsOf(board);
-    // candidates: whole blobs up to 16 cells, plus bridge-splits whose
-    // broken-off side is 6 to 16 cells
+    // candidates: whole blobs up to 16 cells (any size once relaxed),
+    // plus bridge-splits whose broken-off side is 6 to 16 cells
     var candsList = [];
     for (var ci = 0; ci < comps.length; ci++) {
-      if (comps[ci].length <= 16)
+      if (relaxed || comps[ci].length <= 16)
         candsList.push({ cells: comps[ci], minScore: 1, split: false });
       if (comps[ci].length > 6) {
         var sides = splitPiecesOf(comps[ci]);
@@ -334,7 +337,11 @@ function createJigsawSim(cfg) {
     for (var k2 = 0; k2 < candsList.length && !made; k2++)
       made = tryPlace(candsList[k2].cells, candsList[k2].minScore,
                       candsList[k2].split);
-    if (!made) break;
+    if (!made) {
+      if (!relaxed) { relaxed = true; continue; } // enter compaction phase
+      break;
+    }
+    made.compact = relaxed;
     moves.push(made);
   }
 
@@ -445,6 +452,7 @@ function createJigsawSim(cfg) {
         cx: m.fromX + m.c0x + (m.toX + m.c1x - m.fromX - m.c0x) * e,
         cy: m.fromY + m.c0y + (m.toY + m.c1y - m.fromY - m.c0y) * e,
         rot: m.rot, flip: m.flip, e: e, gray: gray, split: m.split,
+        compact: !!m.compact,
         lift: phase === 'fly' ? 1 : 0
       };
     },
@@ -596,7 +604,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
       draw();
       if (!sim.done()) {
         var fl = sim.flying();
-        setStatus('piece ' + sim.currentMove() + '/' + sim.movesTotal
+        setStatus((fl && fl.compact ? 'compacting · ' : '')
+          + 'piece ' + sim.currentMove() + '/' + sim.movesTotal
           + (fl ? ' · ' + fl.size + (fl.size === 1 ? ' cell' : ' cells')
                 + (fl.split ? ', split off' : '') : '')
           + ' · connected ' + (100 * sim.completeness()).toFixed(1) + '%'
