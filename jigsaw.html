@@ -105,14 +105,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * QR jigsaw — the ink solves itself. At every step the board is
  * re-read: pieces are the maximal 4-connected blobs of the current
  * picture, so each move is a standalone piece — never a chunk torn
- * from something it has merged with. Blobs larger than 6 cells may
- * also be split at a bridge (a single edge whose removal disconnects
- * them), the smaller side becoming the piece. The largest piece that
- * fits anywhere moves first, trying all 8 orientations (rotations and
- * flips), and flies to the NEAREST valid spot (snuggest on ties). A
- * whole piece must land touching ink; a broken-off piece must touch
- * two — it gave up one contact by breaking — so total contact grows
- * every move and the process provably stops. Ink is conserved.
+ * from something it has merged with. Whole pieces move only up to 16
+ * cells — the continents stay put. Blobs may also be split at a
+ * bridge (a single edge whose removal disconnects them) when the
+ * broken-off side is 6 to 16 cells, so no single-cell peeling. The
+ * largest piece that fits anywhere moves first, trying all 8
+ * orientations (rotations and flips), and flies to the NEAREST valid
+ * spot (snuggest on ties). A whole piece must land touching ink; a
+ * broken-off piece must touch two — it gave up one contact by
+ * breaking — so total contact grows every move and the process
+ * provably stops. Ink is conserved.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createJigsawSim(cfg) {
@@ -228,7 +230,8 @@ function createJigsawSim(cfg) {
         for (var l2 = 0; l2 < m; l2++) if (!sset[l2]) inv.push(cells[l2]);
         side = inv;
       }
-      if (side.length) out.push(side);
+      // only real chunks split off: 6 to 16 cells, no single-cell peeling
+      if (side.length >= 6 && side.length <= 16) out.push(side);
     }
     return out;
   }
@@ -309,10 +312,12 @@ function createJigsawSim(cfg) {
   var moves = [];
   for (var guard = 0; guard < 3000; guard++) {
     var comps = componentsOf(board);
-    // candidates: whole blobs, plus bridge-splits of blobs larger than 6
+    // candidates: whole blobs up to 16 cells, plus bridge-splits whose
+    // broken-off side is 6 to 16 cells
     var candsList = [];
     for (var ci = 0; ci < comps.length; ci++) {
-      candsList.push({ cells: comps[ci], minScore: 1, split: false });
+      if (comps[ci].length <= 16)
+        candsList.push({ cells: comps[ci], minScore: 1, split: false });
       if (comps[ci].length > 6) {
         var sides = splitPiecesOf(comps[ci]);
         for (var si = 0; si < sides.length; si++)
