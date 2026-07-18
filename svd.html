@@ -108,8 +108,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * factors render as grayscale, and then the spectrum is stripped one
  * singular value at a time: the picture degrades through the best
  * rank-k approximations of the code until only rank 1 — a striped
- * ghost — remains.
- * cfg: {dark: [[x,y]...], n, rate}
+ * ghost — remains. Then the walk reverses, restoring one σ at a time
+ * until the code is whole (and scannable) again.
+ * cfg: {dark: [[x,y]...], n, fade, dwell}
  */
 function svdJacobi(A, n) {
   'use strict';
@@ -169,7 +170,8 @@ function createSvdSim(cfg) {
   'use strict';
   var n = cfg.n;
   var N = n * n;
-  var RATE = cfg.rate != null ? cfg.rate : n / 22; // singular values shed per second
+  var FADE = cfg.fade != null ? cfg.fade : 22 / n; // seconds per component fade
+  var DWELL = cfg.dwell != null ? cfg.dwell : 0.1; // extra pause between steps
 
   var A = new Float64Array(N);
   for (var d = 0; d < cfg.dark.length; d++)
@@ -184,22 +186,49 @@ function createSvdSim(cfg) {
   var kf = n;                       // current (fractional) rank
   var baseK = n;                    // recon currently holds A_baseK
   var recon = Float64Array.from(A); // best rank-baseK approximation
-  var t = 0;
+  var t = 0, dir = -1, dwell = 0, finished = false;
 
-  function subtractComponent(r) {
-    var sv = S[r];
+  function addComponent(r, sign) {
+    var sv = S[r] * sign;
     for (var i = 0; i < n; i++) {
       var usv = U[i * n + r] * sv;
-      for (var j = 0; j < n; j++) recon[i * n + j] -= usv * V[j * n + r];
+      for (var j = 0; j < n; j++) recon[i * n + j] += usv * V[j * n + r];
     }
+  }
+
+  function syncBase() {
+    var want = Math.ceil(kf - 1e-9);
+    while (baseK > want) { addComponent(baseK - 1, -1); baseK--; }
+    while (baseK < want) { addComponent(baseK, 1); baseK++; }
   }
 
   return {
     step: function (dt) {
-      if (kf <= 1) return;
+      if (finished) return;
       t += dt;
-      kf = Math.max(1, kf - RATE * dt);
-      while (baseK > Math.ceil(kf)) { subtractComponent(baseK - 1); baseK--; }
+      var budget = dt;
+      while (budget > 1e-9 && !finished) {
+        if (dwell > 0) {                       // the extra beat between steps
+          var c = Math.min(dwell, budget);
+          dwell -= c; budget -= c;
+          continue;
+        }
+        var next = dir < 0 ? Math.ceil(kf - 1e-9) - 1
+                           : Math.floor(kf + 1e-9) + 1;
+        next = Math.max(1, Math.min(n, next));
+        var need = Math.abs(kf - next) * FADE;
+        if (budget + 1e-6 < need) {            // partway through a fade
+          kf += dir * budget / FADE;
+          budget = 0;
+        } else {                               // fade completes: snap to the stop
+          kf = next;
+          budget = Math.max(0, budget - need);
+          if (dir < 0 && next <= 1) dir = 1;       // bounce at rank 1
+          else if (dir > 0 && next >= n) { finished = true; break; }
+          dwell = DWELL;
+        }
+        syncBase();
+      }
     },
     // rank-kf picture: A_baseK minus the partially-faded next component
     reconInto: function (out) {
@@ -214,6 +243,7 @@ function createSvdSim(cfg) {
     },
     U: U, S: S, V: V, A: A, n: n,
     k: function () { return kf; },
+    dir: function () { return dir; },
     energy: function () {           // fraction of ‖A‖² kept at current rank
       var k = Math.round(kf);
       return totE > 0 ? prefE[k] / totE : 1;
@@ -223,7 +253,7 @@ function createSvdSim(cfg) {
       return Math.sqrt(Math.max(0, totE - prefE[k]));
     },
     stats: function () { return { t: t }; },
-    done: function () { return kf <= 1; }
+    done: function () { return finished; }
   };
 }
 if (typeof module !== 'undefined' && module.exports) {
@@ -237,6 +267,9 @@ if (typeof module !== 'undefined' && module.exports) {
 
   var HOLD_MS = 4000;   // QR stays intact (and scannable) this long
   var PAD = 2, GAP = 5; // layout margins, in cells
+  var SHRINK = 1.1;     // intro: seconds for the code to glide into panel 1
+  var SETTLE = 0.4;     // intro: beat with the three factor panels empty
+  var FILL = 1.8;       // intro: seconds to pour the SVD values in
 
   var canvas = document.getElementById('board');
   var ctx = canvas.getContext('2d');
@@ -252,14 +285,16 @@ if (typeof module !== 'undefined' && module.exports) {
   var sim = null, nMod = 0, W = 0;
   var uMax = 1, vMax = 1;
   var reconBuf = null;
-  var phase = 'hold';   // 'hold' | 'play' | 'done'
-  var holdStart = 0, lastFrame = 0;
+  var phase = 'hold';   // 'hold' | 'intro' | 'play' | 'done'
+  var holdStart = 0, introStart = 0, lastFrame = 0;
   var cell = 8;
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg;
     statusEl.className = isErr ? 'err' : '';
   }
+
+  function ease(p) { return p * p * (3 - 2 * p); }  // smoothstep
 
   function buildSim(text) {
     var qr = qrcode(0, 'M');  // type 0 = auto version, error correction M
@@ -304,61 +339,103 @@ if (typeof module !== 'undefined' && module.exports) {
     ctx.fillText(text, cx, cy);
   }
 
-  // draw one n×n grayscale panel; value(i,j) -> gray level 0..255
+  function frameRect(x0, y0) {
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.14;
+    ctx.strokeRect(x0 - 0.3, y0 - 0.3, nMod + 0.6, nMod + 0.6);
+  }
+
+  // draw one n×n grayscale panel; value(i,j) -> gray level 0..255, or
+  // null to leave the cell empty (white)
   function panel(x0, y0, value) {
     for (var i = 0; i < nMod; i++)
       for (var j = 0; j < nMod; j++) {
-        ctx.fillStyle = gray(value(i, j));
+        var g = value(i, j);
+        if (g === null) continue;
+        ctx.fillStyle = gray(g);
         ctx.fillRect(x0 + j, y0 + i, 1.02, 1.02);
       }
   }
 
-  function draw() {
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, W, W);
-    if (phase === 'hold') {
-      // the intact code, doubled up and centered, still scannable
-      var off = (W - 2 * nMod) / 2;
-      ctx.fillStyle = '#000';
-      for (var y = 0; y < nMod; y++)
-        for (var x = 0; x < nMod; x++)
-          if (sim.A[y * nMod + x] > 0.5)
-            ctx.fillRect(off + 2 * x, off + 2 * y, 2.02, 2.02);
-      return;
-    }
+  function drawQrAt(offX, offY, scale) {
+    ctx.fillStyle = '#000';
+    for (var y = 0; y < nMod; y++)
+      for (var x = 0; x < nMod; x++)
+        if (sim.A[y * nMod + x] > 0.5)
+          ctx.fillRect(offX + scale * x, offY + scale * y,
+            scale + 0.02, scale + 0.02);
+  }
 
-    var k = sim.k(), kc = Math.ceil(k);
-    var U = sim.U, S = sim.S, V = sim.V, n = nMod;
-    sim.reconInto(reconBuf);
-    var x2 = PAD + n + GAP, y2 = PAD + n + GAP;
-
-    // A_k — the surviving picture of the code
-    panel(PAD, PAD, function (i, j) {
-      return 255 * (1 - Math.max(0, Math.min(1, reconBuf[i * n + j])));
-    });
-    // U — left singular vectors, one per column; spent columns fade
-    panel(x2, PAD, function (i, j) {
-      var g = 255 * (0.5 - U[i * n + j] / (2 * uMax));
-      return j < kc ? g : 255 - (255 - g) * 0.18;
-    });
-    // Vᵀ — right singular vectors, one per row; spent rows fade
-    panel(PAD, y2, function (i, j) {
-      var g = 255 * (0.5 - V[j * n + i] / (2 * vMax));
-      return i < kc ? g : 255 - (255 - g) * 0.18;
-    });
-    // Σ — the diagonal, sqrt-scaled so the tail stays visible
-    panel(x2, y2, function (i, j) {
-      if (i !== j) return 252;
-      var g = 255 * (1 - 0.92 * Math.sqrt(S[i] / S[0]));
-      return i < kc ? g : 255 - (255 - g) * 0.18;
-    });
-
-    label('Aₖ  (rank ' + Math.round(k) + ')', PAD + nMod / 2, PAD + nMod + GAP / 2);
+  function drawLabels() {
+    var x2 = PAD + nMod + GAP, y2 = PAD + nMod + GAP;
     label('U', x2 + nMod / 2, PAD + nMod + GAP / 2);
     label('Vᵀ', PAD + nMod / 2, y2 + nMod + PAD / 2 + 0.4);
     label('Σ', x2 + nMod / 2, y2 + nMod + PAD / 2 + 0.4);
     label('×', x2 - GAP / 2, PAD + nMod / 2);
     label('×', x2 - GAP / 2, y2 + nMod / 2);
+  }
+
+  // fillProg 0..1 pours the values in (left-to-right / top-down);
+  // during play it is 1 and the spent components fade instead
+  function drawFactors(fillProg, kc) {
+    var n = nMod, U = sim.U, S = sim.S, V = sim.V;
+    var x2 = PAD + n + GAP, y2 = PAD + n + GAP;
+    var lim = Math.round(fillProg * n);
+    frameRect(x2, PAD); frameRect(PAD, y2); frameRect(x2, y2);
+    panel(x2, PAD, function (i, j) {        // U: one singular vector per column
+      if (j >= lim) return null;
+      var g = 255 * (0.5 - U[i * n + j] / (2 * uMax));
+      return j < kc ? g : 255 - (255 - g) * 0.18;
+    });
+    panel(PAD, y2, function (i, j) {        // Vᵀ: one singular vector per row
+      if (i >= lim) return null;
+      var g = 255 * (0.5 - V[j * n + i] / (2 * vMax));
+      return i < kc ? g : 255 - (255 - g) * 0.18;
+    });
+    panel(x2, y2, function (i, j) {         // Σ: the diagonal, sqrt-scaled
+      if (i !== j) return i < lim && j < lim ? 252 : null;
+      if (i >= lim) return null;
+      var g = 255 * (1 - 0.92 * Math.sqrt(S[i] / S[0]));
+      return i < kc ? g : 255 - (255 - g) * 0.18;
+    });
+  }
+
+  function draw(now) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, W);
+
+    if (phase === 'hold') {
+      // the intact code, doubled up and centered, still scannable
+      var off = (W - 2 * nMod) / 2;
+      drawQrAt(off, off, 2);
+      return;
+    }
+
+    if (phase === 'intro') {
+      var it = (now - introStart) / 1000;
+      var off0 = (W - 2 * nMod) / 2;
+      var p = ease(Math.min(1, it / SHRINK));
+      // the three factor panels fade in as the code glides away
+      ctx.globalAlpha = p;
+      var fillProg = Math.max(0, Math.min(1, (it - SHRINK - SETTLE) / FILL));
+      drawFactors(fillProg, nMod);
+      drawLabels();
+      label('Aₖ  (rank ' + nMod + ')', PAD + nMod / 2, PAD + nMod + GAP / 2);
+      ctx.globalAlpha = 1;
+      drawQrAt(off0 + (PAD - off0) * p, off0 + (PAD - off0) * p, 2 + (1 - 2) * p);
+      return;
+    }
+
+    var k = sim.k(), kc = Math.ceil(k - 1e-9);
+    var n = nMod;
+    sim.reconInto(reconBuf);
+    frameRect(PAD, PAD);
+    panel(PAD, PAD, function (i, j) {       // A_k: the surviving picture
+      return 255 * (1 - Math.max(0, Math.min(1, reconBuf[i * n + j])));
+    });
+    drawFactors(1, kc);
+    drawLabels();
+    label('Aₖ  (rank ' + Math.round(k) + ')', PAD + nMod / 2, PAD + nMod + GAP / 2);
   }
 
   function restart() {
@@ -371,14 +448,14 @@ if (typeof module !== 'undefined' && module.exports) {
     phase = 'hold';
     holdStart = performance.now();
     sizeCanvas();
-    draw();
+    draw(holdStart);
     if (reducedMotion) setStatus('press "Decompose now" when ready');
   }
 
   function startPlay() {
     if (phase === 'hold' && sim) {
-      phase = 'play';
-      lastFrame = performance.now();
+      phase = 'intro';
+      introStart = performance.now();
     }
   }
 
@@ -388,19 +465,29 @@ if (typeof module !== 'undefined' && module.exports) {
       if (left <= 0) startPlay();
       else setStatus('decomposing in ' + Math.ceil(left / 1000) + '…');
     }
+    if (phase === 'intro') {
+      var it = (now - introStart) / 1000;
+      if (it < SHRINK + SETTLE) setStatus('the code is just a 0/1 matrix…');
+      else setStatus('factoring: A = UΣVᵀ');
+      draw(now);
+      if (it >= SHRINK + SETTLE + FILL + 0.3) {
+        phase = 'play';
+        lastFrame = now;
+      }
+    }
     if (phase === 'play') {
       var dt = Math.min((now - lastFrame) / 1000, 1 / 30);
       lastFrame = now;
       if (dt > 0) sim.step(dt);
-      draw();
+      draw(now);
       if (!sim.done()) {
-        setStatus('rank ' + Math.round(sim.k()) + '/' + nMod
+        setStatus((sim.dir() < 0 ? 'shedding' : 'rebuilding')
+          + ' · rank ' + Math.round(sim.k()) + '/' + nMod
           + ' · ' + (100 * sim.energy()).toFixed(1) + '% of the energy'
           + ' · ‖A−Aₖ‖ = ' + sim.frobErr().toFixed(2));
       } else {
         phase = 'done';
-        setStatus('rank 1 · a striped ghost of the code · '
-          + (100 * sim.energy()).toFixed(1) + '% of the energy remains');
+        setStatus('back to full rank · every singular value restored · scannable again');
       }
     }
     requestAnimationFrame(frame);
