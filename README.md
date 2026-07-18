@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, seven ways to fall apart.
+One QR code, eight ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -18,6 +18,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`breaker.html`](breaker.html) | The code is the brick wall in a self-playing brick breaker | Arcade ball physics; the paddle AI banks shots off the walls to target bricks |
 | [`snake.html`](snake.html) | A snake eats every cell except the three finder squares, then eats itself | BFS pathfinding with a tail-reachability safety check |
 | [`tetris.html`](tetris.html) | The code disassembles into tetromino chunks and plays sloppy autoplay tetris | A deliberately mediocre AI: lazy placements, 27% blunders, chokes under pressure — tops out ~10% of the time |
+| [`go.html`](go.html) | The code becomes a legal Go position and the game plays itself out | Full rules (captures, no suicide, simple ko, area scoring); black is a lazy giant, white fights hard in the gaps |
 
 ## Notes
 

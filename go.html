@@ -3,15 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Playground</title>
+<title>QR Goban</title>
 <style>
   :root {
     --bg: #14161a;
     --fg: #e8e6e3;
     --muted: #9a978f;
     --accent: #dfa04c;
-    --card: #1a1d22;
-    --border: #2a2e35;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -20,57 +18,37 @@
     font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
     min-height: 100vh;
     display: flex;
-    justify-content: center;
-    padding: 48px 24px;
-  }
-  main { max-width: 860px; width: 100%; }
-  header { text-align: center; margin-bottom: 36px; }
-  h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: 0.06em; }
-  h1 span { color: var(--accent); }
-  p.sub { color: var(--muted); font-size: 0.85rem; margin-top: 10px; text-wrap: balance; }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
-  }
-  a.card {
-    display: flex;
-    gap: 14px;
     align-items: center;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    text-decoration: none;
-    color: var(--fg);
-    transition: border-color 0.15s;
+    justify-content: center;
+    padding: 24px;
   }
-  a.card:hover { border-color: var(--accent); }
-  a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .thumbwrap { background: #fff; border-radius: 6px; padding: 5px; line-height: 0; flex: none; }
-  canvas { width: 84px; height: 84px; image-rendering: pixelated; }
-  .meta { min-width: 0; }
-  .meta h2 { font-size: 0.9rem; font-weight: 600; letter-spacing: 0.03em; }
-  .meta h2 em { color: var(--accent); font-style: normal; }
-  .meta p { color: var(--muted); font-size: 0.72rem; margin-top: 5px; line-height: 1.45; }
-  .meta .tag {
-    display: inline-block;
-    margin-top: 7px;
-    font-size: 0.62rem;
-    color: var(--accent);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    max-width: 720px;
+    width: 100%;
   }
-  footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.72rem;
-    margin-top: 36px;
+  h1 { font-size: 1.3rem; font-weight: 600; letter-spacing: 0.04em; }
+  h1 span { color: var(--accent); }
+  p.sub { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  .panel {
+    background: #fff;
+    padding: 16px; /* quiet zone */
+    border-radius: 8px;
+    line-height: 0;
+    max-width: 100%;
   }
-  .controls { display: flex; justify-content: center; margin-top: 18px; }
+  canvas { max-width: 100%; height: auto; }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
   input {
     background: #1f2228;
     border: 1px solid #33373f;
@@ -79,87 +57,36 @@
     font-size: 0.85rem;
     padding: 8px 10px;
     border-radius: 6px;
-    width: min(440px, 100%);
+    flex: 1 1 260px;
+    min-width: 200px;
   }
   input:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: #1f2228;
+    border: 1px solid #33373f;
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  #status { color: var(--muted); font-size: 0.8rem; min-height: 1.2em; text-align: center; }
+  #status.err { color: #e06c5e; }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, eight ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
-    <div class="controls">
-      <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
-    </div>
-  </header>
-  <div class="grid">
-    <a class="card" data-href="life.html" href="life.html">
-      <div class="thumbwrap"><canvas id="th-life" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>of LIFE</em></h2>
-        <p>The modules play Conway’s Game of Life.</p>
-        <span class="tag">B3/S23</span>
-      </div>
-    </a>
-    <a class="card" data-href="melt.html" href="melt.html">
-      <div class="thumbwrap"><canvas id="th-melt" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>MELTDOWN</em></h2>
-        <p>The ink melts and drips down a particle fluid.</p>
-        <span class="tag">SPH fluid</span>
-      </div>
-    </a>
-    <a class="card" data-href="collapse.html" href="collapse.html">
-      <div class="thumbwrap"><canvas id="th-collapse" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>COLLAPSE</em></h2>
-        <p>Blocks break loose, tumble, and pile into rubble.</p>
-        <span class="tag">rigid bodies</span>
-      </div>
-    </a>
-    <a class="card" data-href="diffuse.html" href="diffuse.html">
-      <div class="thumbwrap"><canvas id="th-diffuse" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>DIFFUSION</em></h2>
-        <p>Cells random-walk, bump, and drift out of view.</p>
-        <span class="tag">exclusion process</span>
-      </div>
-    </a>
-    <a class="card" data-href="breaker.html" href="breaker.html">
-      <div class="thumbwrap"><canvas id="th-breaker" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>BREAKER</em></h2>
-        <p>The code is the brick wall; the paddle never misses.</p>
-        <span class="tag">autoplay AI</span>
-      </div>
-    </a>
-    <a class="card" data-href="snake.html" href="snake.html">
-      <div class="thumbwrap"><canvas id="th-snake" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>SNAKE</em></h2>
-        <p>A snake eats the ink, then eats itself. The eyes stay.</p>
-        <span class="tag">BFS pathfinding</span>
-      </div>
-    </a>
-    <a class="card" data-href="tetris.html" href="tetris.html">
-      <div class="thumbwrap"><canvas id="th-tetris" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>LINEFALL</em></h2>
-        <p>A sloppy tetris player stacks the pieces. Sometimes it tops out.</p>
-        <span class="tag">may fail</span>
-      </div>
-    </a>
-    <a class="card" data-href="go.html" href="go.html">
-      <div class="thumbwrap"><canvas id="th-go" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>GOBAN</em></h2>
-        <p>The code becomes a Go position; the game plays on.</p>
-        <span class="tag">captures & territory</span>
-      </div>
-    </a>
+  <h1>QR <span>GOBAN</span></h1>
+  <p class="sub">Scan it quick &mdash; then the code becomes a position in a game of Go, and the game plays on. White fights for its life in the gaps.</p>
+  <div class="panel"><canvas id="board"></canvas></div>
+  <div class="controls">
+    <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Go_(game)" aria-label="Text to encode">
+    <button id="restart">Restart</button>
+    <button id="play">Play now</button>
   </div>
-  <footer>Each page is a single self-contained HTML file. Type your own text into any of them.</footer>
+  <div id="status"></div>
 </main>
 
 <script>
@@ -174,169 +101,455 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 
 <script>
+/*
+ * QR goban — the QR becomes a legal Go position, then two mediocre AIs
+ * play it out. Dark modules are black stones; white stones fill a share
+ * of the light modules wherever that keeps every group alive; the rest
+ * stay empty so the game can continue. Standard rules: captures, no
+ * suicide, simple ko, two passes end the game, area scoring.
+ * cfg: {dark: [[x,y]...], n, rand, whiteFrac, rate}
+ */
+function createGoSim(cfg) {
+  'use strict';
+  var n = cfg.n;
+  var N = n * n;
+  var rand = cfg.rand || Math.random;
+  var RATE = cfg.rate || 8;               // moves per second
+  var WHITE_FRAC = cfg.whiteFrac != null ? cfg.whiteFrac : 0.4;
+
+  var EMPTY = 0, BLACK = 1, WHITE = 2;
+  // asymmetric skill: black is a lazy giant, white fights for its life
+  var CAP_P  = [0, 0.5, 0.95];   // odds of taking an available capture
+  var SAVE_P = [0, 0.3, 0.85];   // odds of trying to rescue a group in atari
+  var CARE_P = [0, 0.6, 0.95];   // odds of checking a move for self-atari
+  var board = new Int8Array(N);
+
+  // --- group analysis (flood fill; stamp array de-dupes liberties) ---
+  var GID = new Int32Array(N), STAMP = new Int32Array(N), QUEUE = new Int32Array(N);
+  var stamp = 0;
+  var groups = [];                        // {color, size, libs, lib1, cells}
+
+  function nbrs(c, out) {
+    var x = c % n, k = 0;
+    if (x > 0) out[k++] = c - 1;
+    if (x < n - 1) out[k++] = c + 1;
+    if (c - n >= 0) out[k++] = c - n;
+    if (c + n < N) out[k++] = c + n;
+    return k;
+  }
+  var NB = [0, 0, 0, 0], NB2 = [0, 0, 0, 0], NB3 = [0, 0, 0, 0];
+
+  function computeGroups() {
+    GID.fill(-1);
+    groups = [];
+    for (var s = 0; s < N; s++) {
+      if (board[s] === EMPTY || GID[s] !== -1) continue;
+      var color = board[s], id = groups.length;
+      var cells = [], libs = 0, lib1 = -1;
+      stamp++;
+      var qh = 0, qt = 0;
+      QUEUE[qt++] = s; GID[s] = id;
+      while (qh < qt) {
+        var c = QUEUE[qh++];
+        cells.push(c);
+        var k = nbrs(c, NB);
+        for (var i = 0; i < k; i++) {
+          var b = NB[i];
+          if (board[b] === EMPTY) {
+            if (STAMP[b] !== stamp) { STAMP[b] = stamp; libs++; lib1 = b; }
+          } else if (board[b] === color && GID[b] === -1) {
+            GID[b] = id; QUEUE[qt++] = b;
+          }
+        }
+      }
+      groups.push({ color: color, size: cells.length, libs: libs, lib1: lib1, cells: cells });
+    }
+  }
+
+  // liberties the merged group would have if `color` played at `e`
+  // (assumes any captures already removed from board)
+  function libsAfter(e, color) {
+    board[e] = color;
+    computeGroups();
+    var l = groups[GID[e]].libs;
+    board[e] = EMPTY;
+    return l;
+  }
+
+  // --- setup: black from the QR, white sprinkled where it stays legal ---
+  var caps = [0, 0, 0];                   // [ , captured BY black, BY white]
+  for (var d = 0; d < cfg.dark.length; d++)
+    board[cfg.dark[d][1] * n + cfg.dark[d][0]] = BLACK;
+
+  var lights = [];
+  for (var g0 = 0; g0 < N; g0++) if (board[g0] === EMPTY) lights.push(g0);
+  for (var sh = lights.length - 1; sh > 0; sh--) {
+    var j = (rand() * (sh + 1)) | 0;
+    var tmp = lights[sh]; lights[sh] = lights[j]; lights[j] = tmp;
+  }
+  var whiteTarget = Math.floor(lights.length * WHITE_FRAC);
+  var placed = 0;
+
+  function legalWhite(e0) {
+    board[e0] = WHITE;
+    computeGroups();
+    var ok = groups[GID[e0]].libs > 0;
+    if (ok) {
+      var k0 = nbrs(e0, NB);
+      for (var i0 = 0; i0 < k0; i0++) {
+        var b0 = NB[i0];
+        if (board[b0] !== EMPTY && groups[GID[b0]].libs === 0) { ok = false; break; }
+      }
+    }
+    if (!ok) board[e0] = EMPTY;
+    return ok;
+  }
+  function countNbr(e0, what) {
+    var k0 = nbrs(e0, NB2), cnt = 0;
+    for (var i0 = 0; i0 < k0; i0++) if (board[NB2[i0]] === what) cnt++;
+    return cnt;
+  }
+  // clumped placement so white can actually live: seeds deep in the open,
+  // then grow the clumps, then scatter whatever is still owed
+  for (var li = 0; li < lights.length && placed < whiteTarget; li++) {
+    var e0 = lights[li];
+    if (board[e0] !== EMPTY) continue;
+    if (countNbr(e0, EMPTY) >= 3 && countNbr(e0, BLACK) === 0 && legalWhite(e0)) placed++;
+  }
+  var grew = true;
+  while (grew && placed < whiteTarget) {
+    grew = false;
+    for (var lg = 0; lg < lights.length && placed < whiteTarget; lg++) {
+      var eg = lights[lg];
+      if (board[eg] !== EMPTY) continue;
+      if (countNbr(eg, WHITE) >= 1 && countNbr(eg, EMPTY) >= 1 && legalWhite(eg)) {
+        placed++; grew = true;
+      }
+    }
+  }
+  for (var lf = 0; lf < lights.length && placed < whiteTarget; lf++) {
+    var ef = lights[lf];
+    if (board[ef] === EMPTY && legalWhite(ef)) placed++;
+  }
+  var initialWhite = placed;
+
+  // --- game state ---
+  var toPlay = WHITE;                     // black "moved" by being the QR
+  var t = 0, acc = 0, moves = 0, consecutivePasses = 0, lastMove = -1;
+  var finished = false;
+  var SNAP = [null, null];                // last two positions, for simple ko
+
+  function boardKey() { return String.fromCharCode.apply(null, board); }
+
+  function tryMove(e, color) {
+    var before = board.slice();
+    board[e] = color;
+    computeGroups();
+    var captured = 0;
+    // NB3: computeGroups() below reuses NB, so this loop needs its own buffer
+    var k = nbrs(e, NB3);
+    for (var i = 0; i < k; i++) {
+      var b = NB3[i];
+      if (board[b] !== EMPTY && board[b] !== color && groups[GID[b]] &&
+          groups[GID[b]].libs === 0) {
+        var cells = groups[GID[b]].cells;
+        for (var c2 = 0; c2 < cells.length; c2++) board[cells[c2]] = EMPTY;
+        captured += cells.length;
+        computeGroups();                  // ids shift after removal
+      }
+    }
+    computeGroups();
+    if (groups[GID[e]].libs === 0) { board.set(before); return -1; }  // suicide
+    var key = boardKey();
+    if (SNAP[0] !== null && key === SNAP[0]) { board.set(before); return -1; } // ko
+    caps[color] += captured;
+    SNAP[0] = SNAP[1];
+    SNAP[1] = key;
+    lastMove = e;
+    moves++;
+    consecutivePasses = 0;
+    return captured;
+  }
+
+  function isOwnEye(e, color) {           // off-board sides count as friendly
+    var k = nbrs(e, NB);
+    for (var i = 0; i < k; i++) if (board[NB[i]] !== color) return false;
+    return true;
+  }
+
+  function pickAndPlay(color) {
+    computeGroups();
+    var enemy = color === BLACK ? WHITE : BLACK;
+    // capture opportunities and own groups needing rescue
+    var capMoves = {}, capList = [], escapes = [];
+    for (var gi = 0; gi < groups.length; gi++) {
+      var G = groups[gi];
+      if (G.libs !== 1) continue;
+      if (G.color === enemy) {
+        if (!capMoves[G.lib1]) { capMoves[G.lib1] = 0; capList.push(G.lib1); }
+        capMoves[G.lib1] += G.size;
+      } else if (G.color === color) {
+        escapes.push(G.lib1);
+      }
+    }
+    // everyone takes a big capture… usually
+    if (capList.length && rand() < CAP_P[color]) {
+      capList.sort(function (a, b) { return capMoves[b] - capMoves[a]; });
+      for (var ci = 0; ci < capList.length; ci++)
+        if (tryMove(capList[ci], color) >= 0) return true;
+    }
+    // save a group in atari… sometimes
+    if (escapes.length && rand() < SAVE_P[color]) {
+      var esc = escapes[(rand() * escapes.length) | 0];
+      if (!isOwnEye(esc, color) && tryMove(esc, color) >= 0) return true;
+    }
+    // otherwise: a random legal point, dodging own eyes and (mostly) self-atari
+    var empties = [];
+    for (var e2 = 0; e2 < N; e2++) if (board[e2] === EMPTY) empties.push(e2);
+    for (var att = 0; att < 24 && empties.length; att++) {
+      var pi = (rand() * empties.length) | 0;
+      var e3 = empties[pi];
+      empties[pi] = empties[empties.length - 1];
+      empties.pop();
+      if (isOwnEye(e3, color) && !capMoves[e3]) continue;
+      if (!capMoves[e3] && rand() < CARE_P[color]) {
+        // peek: would this be self-atari?
+        var k3 = nbrs(e3, NB), hasRoom = false;
+        for (var i3 = 0; i3 < k3; i3++) {
+          var b3 = NB[i3];
+          if (board[b3] === EMPTY) { hasRoom = true; break; }
+          if (board[b3] === color && groups[GID[b3]].libs > 2) { hasRoom = true; break; }
+        }
+        if (!hasRoom && libsAfter(e3, color) <= 1) continue;
+      }
+      if (tryMove(e3, color) >= 0) return true;
+    }
+    return false;                          // nothing sensible: pass
+  }
+
+  function doTurn() {
+    if (finished) return;
+    if (pickAndPlay(toPlay)) {
+      toPlay = toPlay === BLACK ? WHITE : BLACK;
+      return;
+    }
+    consecutivePasses++;
+    moves++;
+    lastMove = -1;
+    toPlay = toPlay === BLACK ? WHITE : BLACK;
+    if (consecutivePasses >= 2) finished = true;
+  }
+
+  function areaScore() {
+    computeGroups();
+    var sc = [0, 0, 0];
+    for (var c = 0; c < N; c++) if (board[c] !== EMPTY) sc[board[c]]++;
+    var seen = new Uint8Array(N);
+    for (var s = 0; s < N; s++) {
+      if (board[s] !== EMPTY || seen[s]) continue;
+      var cells = [], qh = 0, qt = 0, touch = 0;
+      QUEUE[qt++] = s; seen[s] = 1;
+      while (qh < qt) {
+        var c4 = QUEUE[qh++];
+        cells.push(c4);
+        var k4 = nbrs(c4, NB2);
+        for (var i4 = 0; i4 < k4; i4++) {
+          var b4 = NB2[i4];
+          if (board[b4] === EMPTY) {
+            if (!seen[b4]) { seen[b4] = 1; QUEUE[qt++] = b4; }
+          } else touch |= board[b4];
+        }
+      }
+      if (touch === BLACK) sc[BLACK] += cells.length;
+      else if (touch === WHITE) sc[WHITE] += cells.length;
+    }
+    return { black: sc[BLACK], white: sc[WHITE] };
+  }
+
+  return {
+    step: function (dt) {
+      if (finished) return;
+      t += dt;
+      acc += RATE * dt;
+      var guard = 0;
+      while (acc >= 1 && guard++ < 60 && !finished) { acc -= 1; doTurn(); }
+    },
+    board: board, n: n,
+    EMPTY: EMPTY, BLACK: BLACK, WHITE: WHITE,
+    lastMoveCell: function () { return lastMove; },
+    toPlayColor: function () { return toPlay; },
+    initialWhite: initialWhite,
+    stats: function () {
+      return { moves: moves, capsByBlack: caps[BLACK], capsByWhite: caps[WHITE], t: t };
+    },
+    score: areaScore,
+    done: function () { return finished; }
+  };
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = createGoSim;
+
+</script>
+
+<script>
 (function () {
   'use strict';
+
+  var HOLD_MS = 4000;   // QR stays intact (and scannable) this long
+
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
   var input = document.getElementById('text');
-  var qr, n, M = 2, G, _s;
-  function rnd() { _s = (_s * 1664525 + 1013904223) >>> 0; return _s / 4294967296; }
-  function dark(x, y) { return x >= 0 && x < n && y >= 0 && y < n && qr.isDark(y, x); }
+  var urlText = null;
+  try { urlText = new URLSearchParams(location.search).get('text'); } catch (e) {}
+  if (urlText) input.value = urlText;
+  var statusEl = document.getElementById('status');
 
-  function ctx2d(id) {
-    var cv = document.getElementById(id);
-    if (!cv) return null;
-    var c = cv.getContext('2d');
-    var s = cv.width / G;
-    c.setTransform(s, 0, 0, s, 0, 0);
-    c.fillStyle = '#fff';
-    c.fillRect(0, 0, G, G);
-    c.fillStyle = '#000';
-    return c;
+  var reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var sim = null;
+  var phase = 'hold';   // 'hold' | 'play' | 'done'
+  var holdStart = 0, lastFrame = 0;
+  var cell = 14, M = 2;
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg;
+    statusEl.className = isErr ? 'err' : '';
   }
-  function px(c, x, y) { c.fillRect(x + M, y + M, 1, 1); }
 
-  function drawThumbs() {
-  // LIFE: the QR after one B3/S23 step
-  var c = ctx2d('th-life');
-  if (c) {
-    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
-      var nb = 0;
-      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++)
-        if ((dx || dy) && dark(x + dx, y + dy)) nb++;
-      if (dark(x, y) ? (nb === 2 || nb === 3) : nb === 3) px(c, x, y);
+  function buildSim(text) {
+    var qr = qrcode(0, 'M');  // type 0 = auto version, error correction M
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount();
+    var dark = [];
+    for (var y = 0; y < n; y++)
+      for (var x = 0; x < n; x++)
+        if (qr.isDark(y, x)) dark.push([x, y]);
+    sim = createGoSim({ dark: dark, n: n });
+  }
+
+  function sizeCanvas() {
+    var W = sim.n + 2 * M;
+    cell = Math.max(6, Math.floor(560 / W));
+    var px = W * cell;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = px * dpr;
+    canvas.height = px * dpr;
+    canvas.style.width = px + 'px';
+    ctx.setTransform(dpr * cell, 0, 0, dpr * cell, 0, 0);
+  }
+
+  function draw() {
+    var n = sim.n, W = n + 2 * M;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, W);
+
+    if (phase === 'hold') {
+      // intact, scannable QR
+      ctx.fillStyle = '#000';
+      for (var g = 0; g < n * n; g++)
+        if (sim.board[g] === sim.BLACK) ctx.fillRect(g % n + M, ((g / n) | 0) + M, 1, 1);
+      return;
     }
-  }
 
-  // MELT: modules sag downward, pooling at the base
-  c = ctx2d('th-melt');
-  if (c) {
-    for (var y2 = 0; y2 < n; y2++) for (var x2 = 0; x2 < n; x2++)
-      if (dark(x2, y2)) {
-        var sag = (y2 / n) * 2.5 * rnd();
-        c.fillRect(x2 + M, y2 + M + sag, 1, 1 + sag * 0.6);
-      }
-    c.fillRect(M, G - M - 1.6, n, 1.6);
-  }
-
-  // COLLAPSE: a rubble pile, a few blocks still tumbling
-  c = ctx2d('th-collapse');
-  if (c) {
-    for (var x3 = 0; x3 < n; x3++) {
-      var h = 0;
-      for (var y3 = 0; y3 < n; y3++) if (dark(x3, y3)) h++;
-      for (var k = 0; k < h; k++) px(c, x3, n - 1 - k);
+    // goban grid through the intersections
+    ctx.strokeStyle = '#d5d0c6';
+    ctx.lineWidth = 0.06;
+    ctx.beginPath();
+    for (var i = 0; i < n; i++) {
+      ctx.moveTo(M + 0.5, M + i + 0.5); ctx.lineTo(M + n - 0.5, M + i + 0.5);
+      ctx.moveTo(M + i + 0.5, M + 0.5); ctx.lineTo(M + i + 0.5, M + n - 0.5);
     }
-    for (var b = 0; b < 4; b++) {
-      c.save();
-      c.translate(M + 2 + rnd() * (n - 4), M + 2 + rnd() * 6);
-      c.rotate(rnd() * 1.2);
-      c.fillRect(-0.5, -0.5, 1, 1);
-      c.restore();
-    }
-  }
+    ctx.stroke();
 
-  // DIFFUSION: a thinned code scattering into random walkers
-  c = ctx2d('th-diffuse');
-  if (c) {
-    for (var y4 = 0; y4 < n; y4++) for (var x4 = 0; x4 < n; x4++)
-      if (dark(x4, y4) && rnd() < 0.4)
-        px(c, Math.max(-M, Math.min(n + M - 1, x4 + Math.round((rnd() - 0.5) * 4))),
-               Math.max(-M, Math.min(n + M - 1, y4 + Math.round((rnd() - 0.5) * 4))));
-  }
-
-  // BREAKER: the code as the brick wall, paddle and ball below
-  c = ctx2d('th-breaker');
-  if (c) {
-    for (var y5 = 0; y5 < Math.floor(n * 0.55); y5++)
-      for (var x5 = 0; x5 < n; x5++) if (dark(x5, y5)) px(c, x5, y5);
-    c.fillRect(M + n * 0.3, G - M - 1.4, n * 0.28, 0.9);
-    c.fillStyle = '#dfa04c';
-    c.beginPath();
-    c.arc(M + n * 0.62, G - M - 5.5, 0.75, 0, 6.2832);
-    c.fill();
-  }
-
-  // SNAKE: half-eaten code, gray snake winding through, amber head
-  c = ctx2d('th-snake');
-  if (c) {
-    for (var y6 = 0; y6 < n; y6++) for (var x6 = 0; x6 < n; x6++)
-      if (dark(x6, y6) && (x6 < 7 && y6 < 7 || x6 >= n - 7 && y6 < 7 ||
-          x6 < 7 && y6 >= n - 7 || rnd() < 0.35)) px(c, x6, y6);
-    c.fillStyle = '#9a9a9a';
-    var sx = 9, sy = n - 2, path = [];
-    for (var s6 = 0; s6 < 26; s6++) {
-      path.push([sx, sy]);
-      if (s6 % 9 < 5) sx += (Math.floor(s6 / 9) % 2 ? -1 : 1); else sy--;
-    }
-    for (var p6 = 0; p6 < path.length - 1; p6++) px(c, path[p6][0], path[p6][1]);
-    c.fillStyle = '#dfa04c';
-    px(c, path[path.length - 1][0], path[path.length - 1][1]);
-  }
-
-  // LINEFALL: half a code left, a ragged stack, one piece midair
-  c = ctx2d('th-tetris');
-  if (c) {
-    for (var y7 = 0; y7 < Math.floor(n * 0.4); y7++)
-      for (var x7 = 0; x7 < n; x7++) if (dark(x7, y7)) px(c, x7, y7);
-    for (var x8 = 0; x8 < n; x8++) {
-      var h8 = 2 + Math.floor(rnd() * 4);
-      for (var k8 = 0; k8 < h8; k8++)
-        if (rnd() < 0.9) px(c, x8, n - 1 - k8);
-    }
-    c.fillStyle = '#dfa04c';
-    var mid = n >> 1;
-    px(c, mid, mid); px(c, mid + 1, mid); px(c, mid + 1, mid + 1); px(c, mid, mid + 1);
-  }
-
-  // GOBAN: stones on the module grid, white fighting in the gaps
-  c = ctx2d('th-go');
-  if (c) {
-    c.strokeStyle = '#ddd';
-    c.lineWidth = 0.06;
-    c.beginPath();
-    for (var gl = 0; gl < n; gl++) {
-      c.moveTo(M + 0.5, M + gl + 0.5); c.lineTo(M + n - 0.5, M + gl + 0.5);
-      c.moveTo(M + gl + 0.5, M + 0.5); c.lineTo(M + gl + 0.5, M + n - 0.5);
-    }
-    c.stroke();
-    for (var y9 = 0; y9 < n; y9++) for (var x9 = 0; x9 < n; x9++) {
-      var isB = dark(x9, y9), isW = !isB && rnd() < 0.3;
-      if (!isB && !isW) continue;
-      c.beginPath();
-      c.arc(x9 + M + 0.5, y9 + M + 0.5, 0.46, 0, 6.2832);
-      if (isB) { c.fillStyle = '#000'; c.fill(); }
-      else {
-        c.fillStyle = '#fff'; c.fill();
-        c.strokeStyle = '#777'; c.lineWidth = 0.08; c.stroke();
+    // stones
+    var r = 0.47;
+    for (var g2 = 0; g2 < n * n; g2++) {
+      var v = sim.board[g2];
+      if (v === sim.EMPTY) continue;
+      var cx = g2 % n + M + 0.5, cy = ((g2 / n) | 0) + M + 0.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, 6.2832);
+      if (v === sim.BLACK) {
+        ctx.fillStyle = '#000';
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 0.07;
+        ctx.stroke();
       }
     }
-  }
+
+    // last move marker
+    var lm = sim.lastMoveCell();
+    if (lm >= 0) {
+      ctx.beginPath();
+      ctx.arc(lm % n + M + 0.5, ((lm / n) | 0) + M + 0.5, 0.16, 0, 6.2832);
+      ctx.fillStyle = '#dfa04c';
+      ctx.fill();
+    }
   }
 
-  function redraw() {
+  function restart() {
     try {
-      var q = qrcode(0, 'M');
-      q.addData(input.value || ' ');
-      q.make();
-      qr = q;
-    } catch (e) { return; }            // too long: keep the previous thumbs
-    n = qr.getModuleCount();
-    G = n + 2 * M;
-    _s = 7;
-    drawThumbs();
+      buildSim(input.value || ' ');
+    } catch (e) {
+      setStatus('Could not encode that text (too long?)', true);
+      return;
+    }
+    phase = 'hold';
+    holdStart = performance.now();
+    sizeCanvas();
+    draw();
+    if (reducedMotion) setStatus('press "Play now" when ready');
   }
 
-  var cards = document.querySelectorAll('a.card');
-  function syncLinks() {
-    var v = input.value;
-    for (var i = 0; i < cards.length; i++) {
-      var base = cards[i].getAttribute('data-href');
-      cards[i].setAttribute('href', v ? base + '?text=' + encodeURIComponent(v) : base);
+  function startPlay() {
+    if (phase === 'hold' && sim) {
+      phase = 'play';
+      lastFrame = performance.now();
     }
   }
 
-  input.addEventListener('input', function () { redraw(); syncLinks(); });
-  redraw();
-  syncLinks();
+  function frame(now) {
+    if (phase === 'hold' && !reducedMotion) {
+      var left = HOLD_MS - (now - holdStart);
+      if (left <= 0) startPlay();
+      else setStatus('game resumes in ' + Math.ceil(left / 1000) + '…');
+    }
+    if (phase === 'play') {
+      var dt = Math.min((now - lastFrame) / 1000, 1 / 30);
+      lastFrame = now;
+      if (dt > 0) sim.step(dt);
+      draw();
+      var st = sim.stats();
+      if (!sim.done()) {
+        setStatus((sim.toPlayColor() === sim.BLACK ? 'black' : 'white') + ' to play · move '
+          + st.moves + ' · captures ● ' + st.capsByBlack + ' ○ ' + st.capsByWhite);
+      } else {
+        phase = 'done';
+        var sc = sim.score();
+        var lead = sc.black - sc.white;
+        setStatus('game over · ' + (lead === 0 ? 'jigo (draw)'
+          : (lead > 0 ? 'B+' + lead : 'W+' + (-lead)))
+          + ' · area ● ' + sc.black + ' ○ ' + sc.white
+          + ' · captures ● ' + st.capsByBlack + ' ○ ' + st.capsByWhite);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  document.getElementById('restart').addEventListener('click', restart);
+  document.getElementById('play').addEventListener('click', startPlay);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') restart();
+  });
+
+  restart();
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
