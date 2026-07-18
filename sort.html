@@ -3,15 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QR Playground</title>
+<title>QR Bubble Sort</title>
 <style>
   :root {
     --bg: #14161a;
     --fg: #e8e6e3;
     --muted: #9a978f;
     --accent: #dfa04c;
-    --card: #1a1d22;
-    --border: #2a2e35;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -20,57 +18,37 @@
     font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
     min-height: 100vh;
     display: flex;
-    justify-content: center;
-    padding: 48px 24px;
-  }
-  main { max-width: 860px; width: 100%; }
-  header { text-align: center; margin-bottom: 36px; }
-  h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: 0.06em; }
-  h1 span { color: var(--accent); }
-  p.sub { color: var(--muted); font-size: 0.85rem; margin-top: 10px; text-wrap: balance; }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 16px;
-  }
-  a.card {
-    display: flex;
-    gap: 14px;
     align-items: center;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    text-decoration: none;
-    color: var(--fg);
-    transition: border-color 0.15s;
+    justify-content: center;
+    padding: 24px;
   }
-  a.card:hover { border-color: var(--accent); }
-  a.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .thumbwrap { background: #fff; border-radius: 6px; padding: 5px; line-height: 0; flex: none; }
-  canvas { width: 84px; height: 84px; image-rendering: pixelated; }
-  .meta { min-width: 0; }
-  .meta h2 { font-size: 0.9rem; font-weight: 600; letter-spacing: 0.03em; }
-  .meta h2 em { color: var(--accent); font-style: normal; }
-  .meta p { color: var(--muted); font-size: 0.72rem; margin-top: 5px; line-height: 1.45; }
-  .meta .tag {
-    display: inline-block;
-    margin-top: 7px;
-    font-size: 0.62rem;
-    color: var(--accent);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    max-width: 720px;
+    width: 100%;
   }
-  footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.72rem;
-    margin-top: 36px;
+  h1 { font-size: 1.3rem; font-weight: 600; letter-spacing: 0.04em; }
+  h1 span { color: var(--accent); }
+  p.sub { color: var(--muted); font-size: 0.85rem; text-align: center; }
+  .panel {
+    background: #fff;
+    padding: 16px; /* quiet zone */
+    border-radius: 8px;
+    line-height: 0;
+    max-width: 100%;
   }
-  .controls { display: flex; justify-content: center; margin-top: 18px; }
+  canvas { max-width: 100%; height: auto; }
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
   input {
     background: #1f2228;
     border: 1px solid #33373f;
@@ -79,119 +57,36 @@
     font-size: 0.85rem;
     padding: 8px 10px;
     border-radius: 6px;
-    width: min(440px, 100%);
+    flex: 1 1 260px;
+    min-width: 200px;
   }
   input:focus { outline: none; border-color: var(--accent); }
+  button {
+    background: #1f2228;
+    border: 1px solid #33373f;
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  #status { color: var(--muted); font-size: 0.8rem; min-height: 1.2em; text-align: center; }
+  #status.err { color: #e06c5e; }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twelve ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
-    <div class="controls">
-      <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
-    </div>
-  </header>
-  <div class="grid">
-    <a class="card" data-href="life.html" href="life.html">
-      <div class="thumbwrap"><canvas id="th-life" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>of LIFE</em></h2>
-        <p>The modules play Conway’s Game of Life.</p>
-        <span class="tag">B3/S23</span>
-      </div>
-    </a>
-    <a class="card" data-href="melt.html" href="melt.html">
-      <div class="thumbwrap"><canvas id="th-melt" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>MELTDOWN</em></h2>
-        <p>The ink melts and drips down a particle fluid.</p>
-        <span class="tag">SPH fluid</span>
-      </div>
-    </a>
-    <a class="card" data-href="collapse.html" href="collapse.html">
-      <div class="thumbwrap"><canvas id="th-collapse" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>COLLAPSE</em></h2>
-        <p>Blocks break loose, tumble, and pile into rubble.</p>
-        <span class="tag">rigid bodies</span>
-      </div>
-    </a>
-    <a class="card" data-href="diffuse.html" href="diffuse.html">
-      <div class="thumbwrap"><canvas id="th-diffuse" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>DIFFUSION</em></h2>
-        <p>Cells random-walk, bump, and drift out of view.</p>
-        <span class="tag">exclusion process</span>
-      </div>
-    </a>
-    <a class="card" data-href="breaker.html" href="breaker.html">
-      <div class="thumbwrap"><canvas id="th-breaker" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>BREAKER</em></h2>
-        <p>The code is the brick wall; the paddle never misses.</p>
-        <span class="tag">autoplay AI</span>
-      </div>
-    </a>
-    <a class="card" data-href="snake.html" href="snake.html">
-      <div class="thumbwrap"><canvas id="th-snake" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>SNAKE</em></h2>
-        <p>A snake eats the ink, then eats itself. The eyes stay.</p>
-        <span class="tag">BFS pathfinding</span>
-      </div>
-    </a>
-    <a class="card" data-href="tetris.html" href="tetris.html">
-      <div class="thumbwrap"><canvas id="th-tetris" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>LINEFALL</em></h2>
-        <p>A sloppy tetris player stacks the pieces. Sometimes it tops out.</p>
-        <span class="tag">may fail</span>
-      </div>
-    </a>
-    <a class="card" data-href="go.html" href="go.html">
-      <div class="thumbwrap"><canvas id="th-go" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>GOBAN</em></h2>
-        <p>The code becomes a Go position; the game plays on.</p>
-        <span class="tag">captures & territory</span>
-      </div>
-    </a>
-    <a class="card" data-href="heat.html" href="heat.html">
-      <div class="thumbwrap"><canvas id="th-heat" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>HEAT DEATH</em></h2>
-        <p>Gaussian blur smears the code into a uniform gray.</p>
-        <span class="tag">∂u/∂t = D ∇²u</span>
-      </div>
-    </a>
-    <a class="card" data-href="ant.html" href="ant.html">
-      <div class="thumbwrap"><canvas id="th-ant" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>ANT FARM</em></h2>
-        <p>Langton’s ants chew chaos and highways through the code.</p>
-        <span class="tag">turmites</span>
-      </div>
-    </a>
-    <a class="card" data-href="shuffle.html" href="shuffle.html">
-      <div class="thumbwrap"><canvas id="th-shuffle" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>SHUFFLE</em></h2>
-        <p>Rows and columns get shuffled until the code is pure noise.</p>
-        <span class="tag">ink conserved</span>
-      </div>
-    </a>
-    <a class="card" data-href="sort.html" href="sort.html">
-      <div class="thumbwrap"><canvas id="th-sort" width="168" height="168"></canvas></div>
-      <div class="meta">
-        <h2>QR <em>BUBBLE SORT</em></h2>
-        <p>Rows then columns get bubble-sorted; the ink stacks in a corner.</p>
-        <span class="tag">O(n²) and proud</span>
-      </div>
-    </a>
+  <h1>QR <span>BUBBLE SORT</span></h1>
+  <p class="sub">Scan it quick &mdash; then every row gets bubble-sorted, then every column, until the ink piles up in the corner.</p>
+  <div class="panel"><canvas id="board"></canvas></div>
+  <div class="controls">
+    <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Bubble_sort" aria-label="Text to encode">
+    <button id="restart">Restart</button>
+    <button id="sort">Sort now</button>
   </div>
-  <footer>Each page is a single self-contained HTML file. Type your own text into any of them.</footer>
+  <div id="status"></div>
 </main>
 
 <script>
@@ -206,259 +101,225 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 
 <script>
+/*
+ * QR bubble sort — alternating passes: bubble-sort every row (black
+ * drifts right), then every column (black sinks down). For a 0/1 grid
+ * this converges to a staircase of ink in the bottom-right corner —
+ * rows and columns simultaneously sorted, every module conserved.
+ * A shared comparison bar sweeps all lines at once, sorting-visualizer
+ * style. Rows are sorted to completion first, then columns; for 0/1
+ * grids column sorting provably never unsorts the rows.
+ * cfg: {dark: [[x,y]...], n, rate0, rateMax}
+ */
+function createSortSim(cfg) {
+  'use strict';
+  var n = cfg.n;
+  var RATE0 = cfg.rate0 || 0.8;           // passes per second at start
+  var RATEMAX = cfg.rateMax || 5;
+  var RAMP = 8;                           // +1 pass/s every RAMP seconds
+
+  var grid = new Uint8Array(n * n);
+  for (var d = 0; d < cfg.dark.length; d++)
+    grid[cfg.dark[d][1] * n + cfg.dark[d][0]] = 1;
+  var ink = cfg.dark.length;
+
+  var phase = 'rows';                     // rows to completion, then cols
+  var passPos = 0;                        // comparison bar, 0..n-1 (float)
+  var nextCmp = 0;                        // next comparison index to apply
+  var swapsThisPass = 0;
+  var t = 0, passes = 0, totalSwaps = 0, finished = false;
+
+  function compareAt(j) {                 // one compare-swap across all lines
+    var swaps = 0, i;
+    if (phase === 'rows') {
+      for (i = 0; i < n; i++) {
+        var a = i * n + j;
+        if (grid[a] === 1 && grid[a + 1] === 0) { grid[a] = 0; grid[a + 1] = 1; swaps++; }
+      }
+    } else {
+      for (i = 0; i < n; i++) {
+        var b = j * n + i;
+        if (grid[b] === 1 && grid[b + n] === 0) { grid[b] = 0; grid[b + n] = 1; swaps++; }
+      }
+    }
+    return swaps;
+  }
+
+  return {
+    step: function (dt) {
+      if (finished) return;
+      t += dt;
+      var rate = Math.min(RATEMAX, RATE0 + t / RAMP);
+      passPos += rate * dt * (n - 1);
+      while (nextCmp < n - 1 && nextCmp <= passPos) {
+        var s = compareAt(nextCmp);
+        swapsThisPass += s;
+        totalSwaps += s;
+        nextCmp++;
+      }
+      if (nextCmp >= n - 1 && passPos >= n - 1) {
+        passes++;
+        if (swapsThisPass === 0) {
+          if (phase === 'rows') phase = 'cols';
+          else if (this.isFullySorted()) { finished = true; return; }
+          else phase = 'rows';            // theory says unreachable; belt and braces
+        }
+        passPos = 0;
+        nextCmp = 0;
+        swapsThisPass = 0;
+      }
+    },
+    grid: grid, n: n,
+    barPhase: function () { return phase; },
+    barPos: function () { return Math.min(n - 1, passPos); },
+    inkCount: function () {
+      var s = 0;
+      for (var i = 0; i < n * n; i++) s += grid[i];
+      return s;
+    },
+    ink0: ink,
+    isFullySorted: function () {          // rows and columns both monotone
+      for (var y = 0; y < n; y++)
+        for (var x = 0; x < n - 1; x++)
+          if (grid[y * n + x] === 1 && grid[y * n + x + 1] === 0) return false;
+      for (var x2 = 0; x2 < n; x2++)
+        for (var y2 = 0; y2 < n - 1; y2++)
+          if (grid[y2 * n + x2] === 1 && grid[(y2 + 1) * n + x2] === 0) return false;
+      return true;
+    },
+    stats: function () { return { passes: passes, swaps: totalSwaps, t: t }; },
+    done: function () { return finished; }
+  };
+}
+if (typeof module !== 'undefined' && module.exports) module.exports = createSortSim;
+
+</script>
+
+<script>
 (function () {
   'use strict';
+
+  var HOLD_MS = 4000;   // QR stays intact (and scannable) this long
+  var M = 2;            // quiet-zone margin, in modules
+
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
   var input = document.getElementById('text');
-  var qr, n, M = 2, G, _s;
-  function rnd() { _s = (_s * 1664525 + 1013904223) >>> 0; return _s / 4294967296; }
-  function dark(x, y) { return x >= 0 && x < n && y >= 0 && y < n && qr.isDark(y, x); }
+  var urlText = null;
+  try { urlText = new URLSearchParams(location.search).get('text'); } catch (e) {}
+  if (urlText) input.value = urlText;
+  var statusEl = document.getElementById('status');
 
-  function ctx2d(id) {
-    var cv = document.getElementById(id);
-    if (!cv) return null;
-    var c = cv.getContext('2d');
-    var s = cv.width / G;
-    c.setTransform(s, 0, 0, s, 0, 0);
-    c.fillStyle = '#fff';
-    c.fillRect(0, 0, G, G);
-    c.fillStyle = '#000';
-    return c;
+  var reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var sim = null;
+  var phase = 'hold';   // 'hold' | 'play' | 'done'
+  var holdStart = 0, lastFrame = 0;
+  var cell = 14;
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg;
+    statusEl.className = isErr ? 'err' : '';
   }
-  function px(c, x, y) { c.fillRect(x + M, y + M, 1, 1); }
 
-  function drawThumbs() {
-  // LIFE: the QR after one B3/S23 step
-  var c = ctx2d('th-life');
-  if (c) {
-    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
-      var nb = 0;
-      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++)
-        if ((dx || dy) && dark(x + dx, y + dy)) nb++;
-      if (dark(x, y) ? (nb === 2 || nb === 3) : nb === 3) px(c, x, y);
+  function fmt(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function buildSim(text) {
+    var qr = qrcode(0, 'M');  // type 0 = auto version, error correction M
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount();
+    var dark = [];
+    for (var y = 0; y < n; y++)
+      for (var x = 0; x < n; x++)
+        if (qr.isDark(y, x)) dark.push([x, y]);
+    sim = createSortSim({ dark: dark, n: n });
+  }
+
+  function sizeCanvas() {
+    var W = sim.n + 2 * M;
+    cell = Math.max(6, Math.floor(560 / W));
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = W * cell * dpr;
+    canvas.height = W * cell * dpr;
+    canvas.style.width = W * cell + 'px';
+    ctx.setTransform(dpr * cell, 0, 0, dpr * cell, 0, 0);
+  }
+
+  function draw() {
+    var n = sim.n, W = n + 2 * M;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, W);
+
+    // the comparison bar sweeps over the pair being compared
+    if (phase === 'play' && !sim.done()) {
+      ctx.fillStyle = 'rgba(223,160,76,0.20)';
+      var pos = sim.barPos();
+      if (sim.barPhase() === 'rows') ctx.fillRect(pos + M, M, 2, n);
+      else ctx.fillRect(M, pos + M, n, 2);
     }
+
+    ctx.fillStyle = '#000';
+    for (var g = 0; g < n * n; g++)
+      if (sim.grid[g]) ctx.fillRect(g % n + M, ((g / n) | 0) + M, 1, 1);
   }
 
-  // MELT: modules sag downward, pooling at the base
-  c = ctx2d('th-melt');
-  if (c) {
-    for (var y2 = 0; y2 < n; y2++) for (var x2 = 0; x2 < n; x2++)
-      if (dark(x2, y2)) {
-        var sag = (y2 / n) * 2.5 * rnd();
-        c.fillRect(x2 + M, y2 + M + sag, 1, 1 + sag * 0.6);
-      }
-    c.fillRect(M, G - M - 1.6, n, 1.6);
-  }
-
-  // COLLAPSE: a rubble pile, a few blocks still tumbling
-  c = ctx2d('th-collapse');
-  if (c) {
-    for (var x3 = 0; x3 < n; x3++) {
-      var h = 0;
-      for (var y3 = 0; y3 < n; y3++) if (dark(x3, y3)) h++;
-      for (var k = 0; k < h; k++) px(c, x3, n - 1 - k);
-    }
-    for (var b = 0; b < 4; b++) {
-      c.save();
-      c.translate(M + 2 + rnd() * (n - 4), M + 2 + rnd() * 6);
-      c.rotate(rnd() * 1.2);
-      c.fillRect(-0.5, -0.5, 1, 1);
-      c.restore();
-    }
-  }
-
-  // DIFFUSION: a thinned code scattering into random walkers
-  c = ctx2d('th-diffuse');
-  if (c) {
-    for (var y4 = 0; y4 < n; y4++) for (var x4 = 0; x4 < n; x4++)
-      if (dark(x4, y4) && rnd() < 0.4)
-        px(c, Math.max(-M, Math.min(n + M - 1, x4 + Math.round((rnd() - 0.5) * 4))),
-               Math.max(-M, Math.min(n + M - 1, y4 + Math.round((rnd() - 0.5) * 4))));
-  }
-
-  // BREAKER: the code as the brick wall, paddle and ball below
-  c = ctx2d('th-breaker');
-  if (c) {
-    for (var y5 = 0; y5 < Math.floor(n * 0.55); y5++)
-      for (var x5 = 0; x5 < n; x5++) if (dark(x5, y5)) px(c, x5, y5);
-    c.fillRect(M + n * 0.3, G - M - 1.4, n * 0.28, 0.9);
-    c.fillStyle = '#dfa04c';
-    c.beginPath();
-    c.arc(M + n * 0.62, G - M - 5.5, 0.75, 0, 6.2832);
-    c.fill();
-  }
-
-  // SNAKE: half-eaten code, gray snake winding through, amber head
-  c = ctx2d('th-snake');
-  if (c) {
-    for (var y6 = 0; y6 < n; y6++) for (var x6 = 0; x6 < n; x6++)
-      if (dark(x6, y6) && (x6 < 7 && y6 < 7 || x6 >= n - 7 && y6 < 7 ||
-          x6 < 7 && y6 >= n - 7 || rnd() < 0.35)) px(c, x6, y6);
-    c.fillStyle = '#9a9a9a';
-    var sx = 9, sy = n - 2, path = [];
-    for (var s6 = 0; s6 < 26; s6++) {
-      path.push([sx, sy]);
-      if (s6 % 9 < 5) sx += (Math.floor(s6 / 9) % 2 ? -1 : 1); else sy--;
-    }
-    for (var p6 = 0; p6 < path.length - 1; p6++) px(c, path[p6][0], path[p6][1]);
-    c.fillStyle = '#dfa04c';
-    px(c, path[path.length - 1][0], path[path.length - 1][1]);
-  }
-
-  // LINEFALL: half a code left, a ragged stack, one piece midair
-  c = ctx2d('th-tetris');
-  if (c) {
-    for (var y7 = 0; y7 < Math.floor(n * 0.4); y7++)
-      for (var x7 = 0; x7 < n; x7++) if (dark(x7, y7)) px(c, x7, y7);
-    for (var x8 = 0; x8 < n; x8++) {
-      var h8 = 2 + Math.floor(rnd() * 4);
-      for (var k8 = 0; k8 < h8; k8++)
-        if (rnd() < 0.9) px(c, x8, n - 1 - k8);
-    }
-    c.fillStyle = '#dfa04c';
-    var mid = n >> 1;
-    px(c, mid, mid); px(c, mid + 1, mid); px(c, mid + 1, mid + 1); px(c, mid, mid + 1);
-  }
-
-  // GOBAN: stones on the module grid, white fighting in the gaps
-  c = ctx2d('th-go');
-  if (c) {
-    c.strokeStyle = '#ddd';
-    c.lineWidth = 0.06;
-    c.beginPath();
-    for (var gl = 0; gl < n; gl++) {
-      c.moveTo(M + 0.5, M + gl + 0.5); c.lineTo(M + n - 0.5, M + gl + 0.5);
-      c.moveTo(M + gl + 0.5, M + 0.5); c.lineTo(M + gl + 0.5, M + n - 0.5);
-    }
-    c.stroke();
-    for (var y9 = 0; y9 < n; y9++) for (var x9 = 0; x9 < n; x9++) {
-      var isB = dark(x9, y9), isW = !isB && rnd() < 0.3;
-      if (!isB && !isW) continue;
-      c.beginPath();
-      c.arc(x9 + M + 0.5, y9 + M + 0.5, 0.46, 0, 6.2832);
-      if (isB) { c.fillStyle = '#000'; c.fill(); }
-      else {
-        c.fillStyle = '#fff'; c.fill();
-        c.strokeStyle = '#777'; c.lineWidth = 0.08; c.stroke();
-      }
-    }
-  }
-
-  // HEAT DEATH: a half-diffused code (a few box-blur passes)
-  c = ctx2d('th-heat');
-  if (c) {
-    var f = new Float32Array(n * n), f2 = new Float32Array(n * n);
-    for (var yh = 0; yh < n; yh++) for (var xh = 0; xh < n; xh++)
-      f[yh * n + xh] = dark(xh, yh) ? 1 : 0;
-    for (var it = 0; it < 4; it++) {
-      for (var yb = 0; yb < n; yb++) for (var xb = 0; xb < n; xb++) {
-        var iB = yb * n + xb;
-        var l = xb > 0 ? f[iB - 1] : f[iB], r2 = xb < n - 1 ? f[iB + 1] : f[iB];
-        var u2 = yb > 0 ? f[iB - n] : f[iB], d2 = yb < n - 1 ? f[iB + n] : f[iB];
-        f2[iB] = (f[iB] * 2 + l + r2 + u2 + d2) / 6;
-      }
-      var tf = f; f = f2; f2 = tf;
-    }
-    for (var yg = 0; yg < n; yg++) for (var xg = 0; xg < n; xg++) {
-      var gv = 255 - Math.round(255 * f[yg * n + xg]);
-      c.fillStyle = 'rgb(' + gv + ',' + gv + ',' + gv + ')';
-      c.fillRect(xg + M, yg + M, 1.02, 1.02);
-    }
-  }
-
-  // ANT FARM: an actual Langton's ant, 2500 steps into the code (torus)
-  c = ctx2d('th-ant');
-  if (c) {
-    var ag = new Uint8Array(n * n);
-    for (var ya = 0; ya < n; ya++) for (var xa = 0; xa < n; xa++)
-      if (dark(xa, ya)) ag[ya * n + xa] = 1;
-    var ax = n >> 1, ay = n >> 1, ad = 0;
-    var ADX = [0, 1, 0, -1], ADY = [-1, 0, 1, 0];
-    for (var as = 0; as < 2500; as++) {
-      var ai = ay * n + ax;
-      ad = (ad + (ag[ai] ? 3 : 1)) & 3;
-      ag[ai] ^= 1;
-      ax = (ax + ADX[ad] + n) % n;
-      ay = (ay + ADY[ad] + n) % n;
-    }
-    c.fillStyle = '#000';
-    for (var yz = 0; yz < n; yz++) for (var xz = 0; xz < n; xz++)
-      if (ag[yz * n + xz]) px(c, xz, yz);
-    c.fillStyle = '#dfa04c';
-    px(c, ax, ay);
-  }
-
-  // SHUFFLE: a few rows and columns already permuted, one mid-glide
-  c = ctx2d('th-shuffle');
-  if (c) {
-    var sg = new Uint8Array(n * n);
-    for (var ys = 0; ys < n; ys++) for (var xs = 0; xs < n; xs++)
-      if (dark(xs, ys)) sg[ys * n + xs] = 1;
-    for (var ln = 0; ln < 8; ln++) {
-      var isRow = ln % 2 === 0, idx = (rnd() * n) | 0;
-      var vals = [], perm = [], iv;
-      for (iv = 0; iv < n; iv++) { perm.push(iv); vals.push(isRow ? sg[idx * n + iv] : sg[iv * n + idx]); }
-      for (iv = n - 1; iv > 0; iv--) {
-        var jv = (rnd() * (iv + 1)) | 0;
-        var tv = perm[iv]; perm[iv] = perm[jv]; perm[jv] = tv;
-      }
-      for (iv = 0; iv < n; iv++) {
-        if (isRow) sg[idx * n + perm[iv]] = vals[iv];
-        else sg[perm[iv] * n + idx] = vals[iv];
-      }
-    }
-    var hl = (n * 0.4) | 0;
-    c.fillStyle = 'rgba(223,160,76,0.25)';
-    c.fillRect(M, hl + M, n, 1);
-    c.fillStyle = '#000';
-    for (var yt = 0; yt < n; yt++) for (var xt = 0; xt < n; xt++)
-      if (sg[yt * n + xt]) px(c, xt, yt);
-  }
-
-  // BUBBLE SORT: rows sorted right, columns mid-sort, bar sweeping
-  c = ctx2d('th-sort');
-  if (c) {
-    var rowInk = [];
-    for (var yq = 0; yq < n; yq++) {
-      var cnt = 0;
-      for (var xq = 0; xq < n; xq++) if (dark(xq, yq)) cnt++;
-      rowInk.push(cnt);
-    }
-    // rows fully sorted (right-aligned), columns partially settled:
-    // draw each row's run shifted down a little toward sortedness
-    rowInk.sort(function (a, b) { return a - b; });
-    c.fillStyle = '#000';
-    for (var yr = 0; yr < n; yr++)
-      for (var xr = n - rowInk[yr]; xr < n; xr++) px(c, xr, yr);
-    c.fillStyle = 'rgba(223,160,76,0.3)';
-    c.fillRect(M, ((n * 0.55) | 0) + M, n, 2);
-  }
-  }
-
-  function redraw() {
+  function restart() {
     try {
-      var q = qrcode(0, 'M');
-      q.addData(input.value || ' ');
-      q.make();
-      qr = q;
-    } catch (e) { return; }            // too long: keep the previous thumbs
-    n = qr.getModuleCount();
-    G = n + 2 * M;
-    _s = 7;
-    drawThumbs();
+      buildSim(input.value || ' ');
+    } catch (e) {
+      setStatus('Could not encode that text (too long?)', true);
+      return;
+    }
+    phase = 'hold';
+    holdStart = performance.now();
+    sizeCanvas();
+    draw();
+    if (reducedMotion) setStatus('press "Sort now" when ready');
   }
 
-  var cards = document.querySelectorAll('a.card');
-  function syncLinks() {
-    var v = input.value;
-    for (var i = 0; i < cards.length; i++) {
-      var base = cards[i].getAttribute('data-href');
-      cards[i].setAttribute('href', v ? base + '?text=' + encodeURIComponent(v) : base);
+  function startPlay() {
+    if (phase === 'hold' && sim) {
+      phase = 'play';
+      lastFrame = performance.now();
     }
   }
 
-  input.addEventListener('input', function () { redraw(); syncLinks(); });
-  redraw();
-  syncLinks();
+  function frame(now) {
+    if (phase === 'hold' && !reducedMotion) {
+      var left = HOLD_MS - (now - holdStart);
+      if (left <= 0) startPlay();
+      else setStatus('sorting in ' + Math.ceil(left / 1000) + '…');
+    }
+    if (phase === 'play') {
+      var dt = Math.min((now - lastFrame) / 1000, 1 / 30);
+      lastFrame = now;
+      if (dt > 0) sim.step(dt);
+      draw();
+      var st = sim.stats();
+      if (!sim.done()) {
+        setStatus('sorting ' + sim.barPhase() + ' · pass ' + (st.passes + 1)
+          + ' · ' + fmt(st.swaps) + ' swaps');
+      } else {
+        phase = 'done';
+        setStatus('sorted · ' + st.passes + ' passes · ' + fmt(st.swaps)
+          + ' swaps · ' + sim.ink0 + ' modules stacked in the corner');
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  document.getElementById('restart').addEventListener('click', restart);
+  document.getElementById('sort').addEventListener('click', startPlay);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') restart();
+  });
+
+  restart();
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>

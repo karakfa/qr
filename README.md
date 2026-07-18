@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, eleven ways to fall apart.
+One QR code, twelve ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -22,6 +22,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`heat.html`](heat.html) | Gaussian blur smears the code into a uniform gray | The heat equation on the ink density field; zero-flux boundaries conserve the ink, so the end state is the code's own mean gray |
 | [`ant.html`](ant.html) | Langton's ants chew chaos and highways through the code, forever | Classic turmite rules on a torus; the step rate ramps from readable to a boil |
 | [`shuffle.html`](shuffle.html) | Rows and columns get shuffled, cells gliding to their new spots, until the code is pure noise | Alternating row/column Fisher-Yates permutations — a mixing Markov chain; done when agreement with the original sits at chance |
+| [`sort.html`](sort.html) | Every row gets bubble-sorted, then every column; the ink stacks into a corner staircase | For 0/1 grids, column sorting provably never unsorts the rows, so two phases suffice |
 
 ## Notes
 
