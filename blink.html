@@ -105,7 +105,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * QR blink — the ink dissolves island by island. An island is a
  * 4-connected component of black cells (sharing an edge; corners
  * don't count). The smallest islands go first: every island of size 1
- * blinks three times — a human blink is about 0.3 s — and vanishes,
+ * grays out and blinks three times — 0.3 s off, 0.3 s on — and vanishes,
  * then every island of size 2, and so on up the sizes until nothing
  * is left of the code.
  * cfg: {dark: [[x,y]...], n, blink, gap}
@@ -113,7 +113,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 function createBlinkSim(cfg) {
   'use strict';
   var n = cfg.n;
-  var BLINK = cfg.blink != null ? cfg.blink : 0.3;  // one off/on cycle
+  var BLINK = cfg.blink != null ? cfg.blink : 0.6;  // one cycle: 0.3 off + 0.3 on
   var BLINKS = 3;
   var GAP = cfg.gap != null ? cfg.gap : 0.35;       // beat between sizes
   var LEAD = 0.5;                                   // beat before the first
@@ -263,11 +263,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createBlin
     var W = nMod + 2 * M;
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, W, W);
-    ctx.fillStyle = '#000';
+    // steady ink black; the blinking islands gray out before they go
     for (var y = 0; y < nMod; y++)
-      for (var x = 0; x < nMod; x++)
-        if (sim.show[y * nMod + x])
-          ctx.fillRect(x + M, y + M, 1.01, 1.01);
+      for (var x = 0; x < nMod; x++) {
+        var s = sim.show[y * nMod + x];
+        if (!s) continue;
+        ctx.fillStyle = s === 2 ? '#a9a49c' : '#000';
+        ctx.fillRect(x + M, y + M, 1.01, 1.01);
+      }
   }
 
   function restart() {
