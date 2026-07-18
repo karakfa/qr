@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, fifteen ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, sixteen ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -212,6 +212,14 @@
         <h2>QR <em>BLOOM</em></h2>
         <p>The ink seeds a chemical garden; coral labyrinths grow.</p>
         <span class="tag">Gray&ndash;Scott</span>
+      </div>
+    </a>
+    <a class="card" data-href="mines.html" href="mines.html">
+      <div class="thumbwrap"><canvas id="th-mines" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>MINEFIELD</em></h2>
+        <p>A sweeper plays minesweeper on the code; a tenth of the cells are mined.</p>
+        <span class="tag">may go boom</span>
       </div>
     </a>
   </div>
@@ -571,6 +579,48 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     obx.putImageData(imB, 0, 0);
     c.imageSmoothingEnabled = true;
     c.drawImage(offB, 0, 0, WB, WB, 0, 0, G, G);
+  }
+
+  // MINEFIELD: mid-sweep — a wedge of numbers and flags, the rest closed
+  c = ctx2d('th-mines');
+  if (c) {
+    var NM = n * n;
+    var mn = new Uint8Array(NM);
+    for (var im = 0; im < NM; im++) mn[im] = rnd() < 0.1 ? 1 : 0;
+    var NUMC = ['', '#2a55c8', '#2e7d32', '#c62828', '#283593',
+                '#8d2f23', '#00838f', '#222222', '#777777'];
+    c.font = 'bold 0.8px monospace';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    for (var ym = 0; ym < n; ym++) for (var xm = 0; xm < n; xm++) {
+      if (xm + ym >= n) {                     // not swept yet: the code
+        if (dark(xm, ym)) { c.fillStyle = '#000'; px(c, xm, ym); }
+        continue;
+      }
+      if (mn[ym * n + xm]) {                  // deduced mine: amber flag
+        c.fillStyle = '#dfa04c';
+        c.beginPath();
+        c.moveTo(xm + M + 0.75, ym + M + 0.15);
+        c.lineTo(xm + M + 0.2, ym + M + 0.45);
+        c.lineTo(xm + M + 0.75, ym + M + 0.75);
+        c.closePath();
+        c.fill();
+        continue;
+      }
+      c.fillStyle = '#eceae5';
+      px(c, xm, ym);
+      var nbm = 0;
+      for (var dym = -1; dym <= 1; dym++) for (var dxm = -1; dxm <= 1; dxm++) {
+        if (!dxm && !dym) continue;
+        var xn = xm + dxm, yn = ym + dym;
+        if (xn >= 0 && xn < n && yn >= 0 && yn < n && mn[yn * n + xn]) nbm++;
+      }
+      if (nbm > 0) {
+        c.fillStyle = NUMC[nbm];
+        c.fillText(String(nbm), xm + M + 0.5, ym + M + 0.55);
+      }
+    }
+    c.fillStyle = '#000';
   }
   }
 
