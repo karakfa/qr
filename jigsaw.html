@@ -110,8 +110,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * bridge (a single edge whose removal disconnects them) when the
  * broken-off side is 6 to 16 cells, so no single-cell peeling. The
  * largest piece that fits anywhere moves first, trying all 8
- * orientations (rotations and flips), and flies to the NEAREST valid
- * spot (snuggest on ties). A whole piece must land touching ink; a
+ * orientations (rotations and flips), and flies to the spot that
+ * CONNECTS THE MOST EDGES — an exactly matching hole beats any open
+ * boundary — with distance breaking ties. A whole piece must land
+ * touching ink; a
  * broken-off piece must touch two — it gave up one contact by
  * breaking — so total contact grows every move and the process
  * provably stops. Ink is conserved.
@@ -237,7 +239,7 @@ function createJigsawSim(cfg) {
   }
 
   // try to place one piece; returns the recorded move or null.
-  // pieces fly to the NEAREST valid fit; snugness breaks ties.
+  // pieces fly to the fit connecting the most edges; nearest on ties.
   function tryPlace(cells, minScore, split) {
     var minX = n, minY = n;
     for (var c3 = 0; c3 < cells.length; c3++) {
@@ -277,10 +279,10 @@ function createJigsawSim(cfg) {
           var ddx = px + (maxX + 1) / 2 - fcx, ddy = py + (maxY + 1) / 2 - fcy;
           var dist = ddx * ddx + ddy * ddy;
           if (dist < 1e-9) continue;            // must actually move
-          if (dist < bestD - 1e-9 ||
-              (dist < bestD + 1e-9 && score > bestS)) {
-            bestD = dist; bestS = score; cands = [[px, py, v]];
-          } else if (dist < bestD + 1e-9 && score === bestS) {
+          if (score > bestS ||
+              (score === bestS && dist < bestD - 1e-9)) {
+            bestS = score; bestD = dist; cands = [[px, py, v]];
+          } else if (score === bestS && dist < bestD + 1e-9) {
             cands.push([px, py, v]);
           }
         }
@@ -341,6 +343,48 @@ function createJigsawSim(cfg) {
   var phase = moves.length ? 'pre' : 'done';
   var prog = 0, t = 0, started = false;
 
+  // ---- completeness metrics, cached at commit boundaries so the
+  // in-flight (lifted) piece never makes them flicker ----
+  var inkA = 0;
+  for (var ia = 0; ia < n * n; ia++) inkA += grid[ia];
+  var pMin = 2 * Math.ceil(2 * Math.sqrt(inkA));   // least possible perimeter
+  var mComplete = 0, mEnclosed = 0;
+
+  function updateMetrics() {
+    var per = 0;
+    for (var i = 0; i < n * n; i++) {
+      if (!grid[i]) continue;
+      var x = i % n, y = (i / n) | 0;
+      if (x === 0 || !grid[i - 1]) per++;
+      if (x === n - 1 || !grid[i + 1]) per++;
+      if (y === 0 || !grid[i - n]) per++;
+      if (y === n - 1 || !grid[i + n]) per++;
+    }
+    // fraction of the possible edge connections already made:
+    // contact = (4A − P)/2, maximal at P = P_min
+    mComplete = (4 * inkA - per) / (4 * inkA - pMin);
+    var open = new Uint8Array(n * n), st = [];
+    for (var e = 0; e < n; e++) {
+      var edges = [e, e * n, e * n + n - 1, (n - 1) * n + e];
+      for (var e2 = 0; e2 < 4; e2++)
+        if (!grid[edges[e2]] && !open[edges[e2]]) {
+          open[edges[e2]] = 1;
+          st.push(edges[e2]);
+        }
+    }
+    while (st.length) {
+      var i2 = st.pop();
+      var x2 = i2 % n, y2 = (i2 / n) | 0;
+      if (x2 > 0 && !grid[i2 - 1] && !open[i2 - 1]) { open[i2 - 1] = 1; st.push(i2 - 1); }
+      if (x2 < n - 1 && !grid[i2 + 1] && !open[i2 + 1]) { open[i2 + 1] = 1; st.push(i2 + 1); }
+      if (y2 > 0 && !grid[i2 - n] && !open[i2 - n]) { open[i2 - n] = 1; st.push(i2 - n); }
+      if (y2 < n - 1 && !grid[i2 + n] && !open[i2 + n]) { open[i2 + n] = 1; st.push(i2 + n); }
+    }
+    mEnclosed = 0;
+    for (var i3 = 0; i3 < n * n; i3++) if (!grid[i3] && !open[i3]) mEnclosed++;
+  }
+  updateMetrics();
+
   function moveDur(m) {
     var dx = m.toX + m.c1x - m.fromX - m.c0x;
     var dy = m.toY + m.c1y - m.fromY - m.c0y;
@@ -354,6 +398,7 @@ function createJigsawSim(cfg) {
   function landMove(m) {
     for (var c = 0; c < m.vRelX.length; c++)
       grid[(m.toY + m.vRelY[c]) * n + m.toX + m.vRelX[c]] = 1;
+    updateMetrics();
   }
 
   return {
@@ -415,6 +460,12 @@ function createJigsawSim(cfg) {
       }
       return per;
     },
+    // completeness: fraction of possible edge connections already made,
+    // (4A−P)/(4A−P_min). Strictly rises with every committed move;
+    // 100% would be a perfectly packed block. Cached at commits.
+    completeness: function () { return mComplete; },
+    // white cells sealed off from the border — the trapped holes
+    enclosedWhite: function () { return mEnclosed; },
     movesTotal: moves.length,
     currentMove: function () { return Math.min(mi + 1, moves.length); },
     currentSize: function () {
@@ -445,7 +496,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
   var reducedMotion = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  var sim = null, nMod = 0, per0 = 1;
+  var sim = null, nMod = 0, comp0 = 0;
   var phase = 'hold';   // 'hold' | 'play' | 'done'
   var holdStart = 0, lastFrame = 0;
   var cell = 14;
@@ -465,7 +516,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
       for (var x = 0; x < nMod; x++)
         if (qr.isDark(y, x)) dark.push([x, y]);
     sim = createJigsawSim({ dark: dark, n: nMod });
-    per0 = sim.perimeter() || 1;
+    comp0 = sim.completeness();
   }
 
   function sizeCanvas() {
@@ -548,13 +599,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
         setStatus('piece ' + sim.currentMove() + '/' + sim.movesTotal
           + (fl ? ' · ' + fl.size + (fl.size === 1 ? ' cell' : ' cells')
                 + (fl.split ? ', split off' : '') : '')
-          + ' · ' + Math.max(0, Math.round(100 * (1 - sim.perimeter() / per0)))
-          + '% tidier');
+          + ' · connected ' + (100 * sim.completeness()).toFixed(1) + '%'
+          + ' · ' + sim.enclosedWhite() + ' enclosed');
       } else {
         phase = 'done';
-        setStatus('solved · ' + sim.movesTotal + ' moves · nothing fits anywhere'
-          + ' · ' + Math.round(100 * (1 - sim.perimeter() / per0))
-          + '% tidier than the code');
+        setStatus('solved · ' + sim.movesTotal + ' moves · connected '
+          + (100 * comp0).toFixed(1) + '% → '
+          + (100 * sim.completeness()).toFixed(1) + '%'
+          + ' · ' + sim.enclosedWhite() + ' cells still enclosed');
       }
     }
     requestAnimationFrame(frame);
