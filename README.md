@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, twenty-one ways to fall apart.
+One QR code, twenty-two ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -32,6 +32,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`fold.html`](fold.html) | The sheet folds in half four times and the layers XOR — ink on ink cancels | 33×33 → 17×33 → 17×17 → 9×17 → 9×9; the crease keeps its single layer; what remains is the parity of the code |
 | [`twist.html`](twist.html) | Random square patches twist 90° left or right until the code is churned to noise | 4×4–8×8 patches rotate like a twisty puzzle, corners overhanging mid-turn; ink conserved; done when agreement with the original sits at chance |
 | [`blink.html`](blink.html) | Ink islands gray out, blink three times, and vanish — smallest first | 4-connected components removed in ascending size order; one decomposition up front stays exact because whole islands never merge |
+| [`jigsaw.html`](jigsaw.html) | The ink solves itself as a jigsaw: blobs lift, turn, flip, and dock into the snuggest whitespace until everything is one piece | Pieces re-read from the board every move; bridge-splitting, edge-maximizing placement, then a continental compaction endgame; completeness = fraction of possible edge connections made, strictly rising every move |
 
 ## Notes
 

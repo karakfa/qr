@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-one ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-two ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -260,6 +260,14 @@
         <h2>QR <em>BLINK</em></h2>
         <p>Ink islands blink three times and vanish, smallest first.</p>
         <span class="tag">4-connected</span>
+      </div>
+    </a>
+    <a class="card" data-href="jigsaw.html" href="jigsaw.html">
+      <div class="thumbwrap"><canvas id="th-jigsaw" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>JIGSAW</em></h2>
+        <p>Ink blobs fly, turn, and flip into snug whitespace &mdash; until all one piece.</p>
+        <span class="tag">self-solving</span>
       </div>
     </a>
   </div>
@@ -814,6 +822,53 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (szv <= 2) continue;                  // already dissolved
       c.fillStyle = szv === 3 ? '#a9a49c' : '#000';
       c.fillRect(gb2 % n + M, ((gb2 / n) | 0) + M, 1.02, 1.02);
+    }
+    c.fillStyle = '#000';
+  }
+
+  // JIGSAW: one blob lifted out of the code, caught mid-flight in gray
+  c = ctx2d('th-jigsaw');
+  if (c) {
+    var compj = new Int32Array(n * n), pieceJ = null, stj = [];
+    for (var cj = 0; cj < n * n; cj++) compj[cj] = -1;
+    for (var sj = 0; sj < n * n && !pieceJ; sj++) {
+      if (!dark(sj % n, (sj / n) | 0) || compj[sj] >= 0) continue;
+      var cellsJ = [];
+      stj.push(sj); compj[sj] = 1;
+      while (stj.length) {
+        var ij = stj.pop();
+        cellsJ.push(ij);
+        var xj = ij % n, yj = (ij / n) | 0;
+        if (xj > 0 && dark(xj - 1, yj) && compj[ij - 1] < 0) { compj[ij - 1] = 1; stj.push(ij - 1); }
+        if (xj < n - 1 && dark(xj + 1, yj) && compj[ij + 1] < 0) { compj[ij + 1] = 1; stj.push(ij + 1); }
+        if (yj > 0 && dark(xj, yj - 1) && compj[ij - n] < 0) { compj[ij - n] = 1; stj.push(ij - n); }
+        if (yj < n - 1 && dark(xj, yj + 1) && compj[ij + n] < 0) { compj[ij + n] = 1; stj.push(ij + n); }
+      }
+      if (cellsJ.length >= 5 && cellsJ.length <= 12 &&
+          (sj % n) < n * 0.6 && ((sj / n) | 0) > n * 0.2) pieceJ = cellsJ;
+    }
+    var inPiece = {};
+    if (pieceJ) for (var pj = 0; pj < pieceJ.length; pj++) inPiece[pieceJ[pj]] = 1;
+    c.fillStyle = '#000';
+    for (var yj2 = 0; yj2 < n; yj2++) for (var xj2 = 0; xj2 < n; xj2++)
+      if (dark(xj2, yj2) && !inPiece[yj2 * n + xj2]) px(c, xj2, yj2);
+    if (pieceJ) {
+      var cxj = 0, cyj = 0;
+      for (var pj2 = 0; pj2 < pieceJ.length; pj2++) {
+        var pxj = pieceJ[pj2] % n, pyj = (pieceJ[pj2] / n) | 0;
+        c.fillStyle = '#f3f2ef';                // the recess it left
+        px(c, pxj, pyj);
+        cxj += pxj + 0.5; cyj += pyj + 0.5;
+      }
+      cxj = cxj / pieceJ.length + M; cyj = cyj / pieceJ.length + M;
+      c.save();
+      c.translate(cxj + 4.5, cyj + 3.5);
+      c.rotate(0.5);
+      c.translate(-cxj, -cyj);
+      c.fillStyle = '#a9a49c';                  // gray, mid-flight
+      for (var pj3 = 0; pj3 < pieceJ.length; pj3++)
+        px(c, pieceJ[pj3] % n, (pieceJ[pj3] / n) | 0);
+      c.restore();
     }
     c.fillStyle = '#000';
   }
