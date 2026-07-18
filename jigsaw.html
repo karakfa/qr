@@ -117,8 +117,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * broken-off piece must touch two — it gave up one contact by
  * breaking — so total contact grows every move and the process
  * provably stops. When those rules stall, a final compaction phase
- * lifts the 16-cell cap and moves the remaining separate blobs whole,
- * merging the continents themselves. Ink is conserved.
+ * lifts the 16-cell cap: the remaining blobs move whole, and bridge
+ * splits may break off sides of any size (still 6 or more), so a
+ * continent hanging together by one edge can be re-fitted snugly.
+ * Ink is conserved.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createJigsawSim(cfg) {
@@ -186,8 +188,8 @@ function createJigsawSim(cfg) {
   }
 
   // bridge edges of a component (Tarjan); returns the smaller side of
-  // each split as a candidate piece
-  function splitPiecesOf(cells) {
+  // each split as a candidate piece, sized within [6, maxSide]
+  function splitPiecesOf(cells, maxSide) {
     var m = cells.length;
     var local = {};
     for (var l = 0; l < m; l++) local[cells[l]] = l;
@@ -234,8 +236,8 @@ function createJigsawSim(cfg) {
         for (var l2 = 0; l2 < m; l2++) if (!sset[l2]) inv.push(cells[l2]);
         side = inv;
       }
-      // only real chunks split off: 6 to 16 cells, no single-cell peeling
-      if (side.length >= 6 && side.length <= 16) out.push(side);
+      // only real chunks split off: no single-cell peeling
+      if (side.length >= 6 && side.length <= maxSide) out.push(side);
     }
     return out;
   }
@@ -318,13 +320,13 @@ function createJigsawSim(cfg) {
   for (var guard = 0; guard < 3000; guard++) {
     var comps = componentsOf(board);
     // candidates: whole blobs up to 16 cells (any size once relaxed),
-    // plus bridge-splits whose broken-off side is 6 to 16 cells
+    // plus bridge-splits — sides of 6 to 16 cells, any size once relaxed
     var candsList = [];
     for (var ci = 0; ci < comps.length; ci++) {
       if (relaxed || comps[ci].length <= 16)
         candsList.push({ cells: comps[ci], minScore: 1, split: false });
       if (comps[ci].length > 6) {
-        var sides = splitPiecesOf(comps[ci]);
+        var sides = splitPiecesOf(comps[ci], relaxed ? Infinity : 16);
         for (var si = 0; si < sides.length; si++)
           candsList.push({ cells: sides[si], minScore: 2, split: true });
       }
