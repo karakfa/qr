@@ -79,7 +79,7 @@
 <body>
 <main>
   <h1>QR <span>KUFIC</span></h1>
-  <p class="sub">Scan it quick &mdash; then a pen sweeps right to left, rewriting the code as square Kufic: the same string in one-module strokes, right angles, and a woven baseline.</p>
+  <p class="sub">Scan it quick &mdash; then the ink takes flight, module by module, and resettles as square Kufic: the same string, the very same ink &mdash; the surplus becomes the border.</p>
   <div class="panel"><canvas id="board"></canvas></div>
   <div class="controls">
     <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/Kufic" aria-label="Text to encode">
@@ -104,20 +104,23 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 /*
  * QR kufic — geometric (square) Kufic script is the QR code's medieval
  * cousin: text on a square grid, uniform strokes, right angles only.
- * The page renders the encoded string itself in a square-Kufic-styled
- * letterform: every stroke one module thick, no diagonals, and a
- * continuous baseline connecting the letters of each word into a woven
- * band. A pen sweeps right to left — as Kufic is written — replacing
- * the code with the calligraphy. The status reports how much of the
- * code's ink was already where the script needed it.
+ * The encoded string itself is set in square-Kufic-styled letterforms —
+ * one-module strokes, no diagonals, a continuous baseline weaving each
+ * line into a band — and the ink is EXACTLY conserved: whatever black
+ * the calligraphy doesn't need becomes a decorative border frame,
+ * concentric rings laid outermost first, as in banna'i panels. Every
+ * module either stays put or flies to its place as a pen front sweeps
+ * right to left, the direction Kufic is written.
  * cfg: {dark: [[x,y]...], n, text}
  */
 function createKuficSim(cfg) {
   'use strict';
   var n = cfg.n;
+  var EX = 2;          // the frame may spill into the quiet-zone margin
+  var W = n + 2 * EX;
   var LEAD = 0.5;
-  var SWEEP = 0.26;   // seconds per column of the pen sweep
-  var TAIL = 0.6;
+  var SWEEP = 0.22;   // seconds per column of the pen front
+  var TAIL = 0.5;
 
   // 3×4 glyph bodies; a solid baseline row is added underneath, and a
   // 1-column connector (baseline only) joins letters within a word
@@ -174,71 +177,144 @@ function createKuficSim(cfg) {
   };
   var FALLBACK = ['###', '#.#', '#.#', '###'];
 
-  var GW = 4;         // glyph pitch: 3 body columns + 1 connector
-  var GH = 5;         // 4 body rows + baseline
-  var LH = GH + 1;    // line height incl. the gap between bands
+  var GW = 4, GH = 5, LH = GH + 1;
   var perLine = Math.floor((n + 1) / GW);
   var maxLines = Math.floor((n + 1) / LH);
 
-  // ---- lay the text out, line by line ----
-  var text = (cfg.text || '').toLowerCase();
-  var target = new Uint8Array(n * n);
-  var fitted = 0;
-  var lines = [];
-  var cur = '';
-  for (var ci = 0; ci < text.length && lines.length < maxLines; ci++) {
-    cur += text[ci];
-    if (cur.length >= perLine) { lines.push(cur); cur = ''; }
-  }
-  if (cur && lines.length < maxLines) lines.push(cur);
+  var source = new Uint8Array(W * W);
+  for (var d = 0; d < cfg.dark.length; d++)
+    source[(cfg.dark[d][1] + EX) * W + cfg.dark[d][0] + EX] = 1;
+  var sourceInk = 0;
+  for (var si = 0; si < W * W; si++) sourceInk += source[si];
 
-  var blockH = lines.length * LH - 1;
-  var y0 = Math.max(0, (n - blockH) >> 1);
-  for (var li = 0; li < lines.length; li++) {
-    var line = lines[li];
-    var lw = line.length * GW - 1;
-    var x0 = Math.max(0, (n - lw) >> 1);
-    var by = y0 + li * LH;
-    for (var gi = 0; gi < line.length; gi++) {
-      var ch = line[gi];
-      var gx = x0 + gi * GW;
-      if (ch === ' ') { fitted++; continue; }   // a word break: no baseline
-      var body = FONT[ch] || FALLBACK;
-      fitted++;
-      for (var ry = 0; ry < 4; ry++)
-        for (var rx = 0; rx < 3; rx++)
-          if (body[ry].charAt(rx) === '#' && gx + rx < n && by + ry < n)
-            target[(by + ry) * n + gx + rx] = 1;
-      // the baseline, plus the connector to the next letter of the word
-      var connect = gi < line.length - 1 && line[gi + 1] !== ' ';
-      for (var bx = 0; bx < (connect ? GW : 3); bx++)
-        if (gx + bx < n && by + 4 < n) target[(by + 4) * n + gx + bx] = 1;
+  // ---- lay the text out; drop trailing glyphs if the ink can't cover it ----
+  var text = (cfg.text || '').toLowerCase();
+  var chars = [];
+  for (var ci = 0; ci < text.length && chars.length < perLine * maxLines; ci++)
+    chars.push(text[ci]);
+
+  var target, fitted, lineCount, textInk;
+  function renderText(count) {
+    target = new Uint8Array(W * W);
+    fitted = 0;
+    textInk = 0;
+    var lines = [];
+    for (var k = 0; k < count; k += perLine)
+      lines.push(chars.slice(k, Math.min(count, k + perLine)));
+    lineCount = lines.length;
+    var y0 = EX + Math.max(0, (n - (lines.length * LH - 1)) >> 1);
+    for (var li = 0; li < lines.length; li++) {
+      var line = lines[li];
+      var x0 = EX + Math.max(0, (n - (line.length * GW - 1)) >> 1);
+      var by = y0 + li * LH;
+      for (var gi = 0; gi < line.length; gi++) {
+        var ch = line[gi];
+        var gx = x0 + gi * GW;
+        fitted++;
+        if (ch === ' ') continue;
+        var body = FONT[ch] || FALLBACK;
+        for (var ry = 0; ry < 4; ry++)
+          for (var rx = 0; rx < 3; rx++)
+            if (body[ry].charAt(rx) === '#' && gx + rx < W && by + ry < W)
+              if (!target[(by + ry) * W + gx + rx]) {
+                target[(by + ry) * W + gx + rx] = 1;
+                textInk++;
+              }
+        var connect = gi < line.length - 1 && line[gi + 1] !== ' ';
+        for (var bx = 0; bx < (connect ? GW : 3); bx++)
+          if (gx + bx < W && by + 4 < W && !target[(by + 4) * W + gx + bx]) {
+            target[(by + 4) * W + gx + bx] = 1;
+            textInk++;
+          }
+      }
     }
   }
+  var useChars = chars.length;
+  renderText(useChars);
+  while (textInk > sourceInk && useChars > 0) renderText(--useChars);
 
-  var source = new Uint8Array(n * n);
-  for (var d = 0; d < cfg.dark.length; d++)
-    source[cfg.dark[d][1] * n + cfg.dark[d][0]] = 1;
-
-  var kept = 0, targetInk = 0;
-  for (var g = 0; g < n * n; g++) {
-    if (target[g]) targetInk++;
-    if (target[g] && source[g]) kept++;
+  // ---- spend the surplus ink on a border frame: concentric rings,
+  // outermost first, one cell clear of the calligraphy ----
+  var surplus = sourceInk - textInk;
+  var borderInk = 0;
+  if (surplus > 0) {
+    var nearText = new Uint8Array(W * W);
+    for (var h = 0; h < W * W; h++) {
+      if (!target[h]) continue;
+      var hx = h % W, hy = (h / W) | 0;
+      for (var dy = -1; dy <= 1; dy++)
+        for (var dx = -1; dx <= 1; dx++) {
+          var qx = hx + dx, qy = hy + dy;
+          if (qx >= 0 && qx < W && qy >= 0 && qy < W) nearText[qy * W + qx] = 1;
+        }
+    }
+    var inDecor = new Uint8Array(W * W);
+    var decor = [];
+    for (var off = 0; off < W / 2; off += 2) {
+      var lo = off, hi2 = W - 1 - off;
+      if (hi2 <= lo) break;
+      var ring = [];
+      for (var x1 = hi2; x1 >= lo; x1--) ring.push(lo * W + x1);
+      for (var y1 = lo + 1; y1 <= hi2; y1++) ring.push(y1 * W + lo);
+      for (var x2 = lo + 1; x2 <= hi2; x2++) ring.push(hi2 * W + x2);
+      for (var y2 = hi2 - 1; y2 > lo; y2--) ring.push(y2 * W + hi2);
+      for (var r2 = 0; r2 < ring.length; r2++)
+        if (!nearText[ring[r2]] && !inDecor[ring[r2]]) {
+          inDecor[ring[r2]] = 1;
+          decor.push(ring[r2]);
+        }
+    }
+    // then any clear cell; as a last resort, cells beside the strokes
+    for (var f2 = 0; f2 < W * W && decor.length < surplus; f2++)
+      if (!nearText[f2] && !inDecor[f2]) { inDecor[f2] = 1; decor.push(f2); }
+    for (var f3 = 0; f3 < W * W && decor.length < surplus; f3++)
+      if (!target[f3] && !inDecor[f3]) { inDecor[f3] = 1; decor.push(f3); }
+    for (var b2 = 0; b2 < decor.length && borderInk < surplus; b2++) {
+      target[decor[b2]] = 1;
+      borderInk++;
+    }
   }
+  var targetInk = textInk + borderInk;
 
-  var total = LEAD + n * SWEEP + TAIL;
+  // ---- match source modules to target cells: stay put when possible,
+  // otherwise pair off in right-to-left order for a coherent flow ----
+  var stay = 0, movers = [];
+  var srcLeft = [], tgtLeft = [];
+  for (var m = 0; m < W * W; m++) {
+    if (source[m] && target[m]) stay++;
+    else if (source[m]) srcLeft.push(m);
+    else if (target[m]) tgtLeft.push(m);
+  }
+  function rtl(a, b) { return (b % W) - (a % W) || (a - b); }
+  srcLeft.sort(rtl);
+  tgtLeft.sort(rtl);
+  var maxEnd = LEAD;
+  var count = Math.min(srcLeft.length, tgtLeft.length);
+  for (var p = 0; p < count; p++) {
+    var s2 = srcLeft[p], t2 = tgtLeft[p];
+    var sx = s2 % W, sy = (s2 / W) | 0;
+    var tx = t2 % W, ty = (t2 / W) | 0;
+    var depart = LEAD + (W - 1 - sx) * SWEEP;
+    var dx2 = tx - sx, dy2 = ty - sy;
+    var dur = 0.5 + Math.sqrt(dx2 * dx2 + dy2 * dy2) * 0.03;
+    movers.push({ sx: sx, sy: sy, tx: tx, ty: ty, depart: depart, dur: dur });
+    if (depart + dur > maxEnd) maxEnd = depart + dur;
+  }
+  // surplus sources beyond target capacity (only if clamped): fade in place
+  var lost = srcLeft.length - count;
+
+  var total = maxEnd + TAIL;
   var t = 0;
 
   return {
     step: function (dt) { t = Math.min(total, t + dt); },
-    n: n, source: source, target: target,
-    // the pen's column: starts right of the grid, sweeps to −1 (RTL)
-    frontX: function () {
-      return n - (t - LEAD) / SWEEP;
-    },
-    reuse: function () { return targetInk ? kept / targetInk : 1; },
-    fitted: fitted, totalChars: text.length, lines: lines.length,
-    targetInk: targetInk,
+    n: n, W: W, source: source, target: target, movers: movers,
+    frontX: function () { return W - 1 - (t - LEAD) / SWEEP; },
+    time: function () { return t; },
+    stayPut: function () { return targetInk ? stay / targetInk : 1; },
+    fitted: fitted, totalChars: text.length, lines: lineCount,
+    sourceInk: sourceInk, targetInk: targetInk,
+    textInk: textInk, borderInk: borderInk, lost: lost,
     stats: function () { return { t: t }; },
     done: function () { return t >= total; }
   };
@@ -301,22 +377,40 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createKufi
     ctx.setTransform(dpr * cell, 0, 0, dpr * cell, 0, 0);
   }
 
+  function ease(p) { return p * p * (3 - 2 * p); }
+
+  // the sim works on the full canvas grid (code + quiet-zone margin,
+  // where the border frame may land), so cells draw without an offset
   function draw() {
-    var W = nMod + 2 * M, n = nMod;
+    var W = sim.W;
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, W, W);
-    var front = phase === 'hold' ? n + 1 : sim.frontX();
     ctx.fillStyle = '#000';
-    for (var y = 0; y < n; y++)
-      for (var x = 0; x < n; x++) {
-        var written = x >= front;    // the pen has passed, RTL
-        if (written ? sim.target[y * n + x] : sim.source[y * n + x])
-          ctx.fillRect(x + M, y + M, 1.01, 1.01);
-      }
-    // the pen: a warm bar at the writing front
-    if (phase === 'play' && front > -1 && front <= n) {
+    // ink that is already where the calligraphy needs it never moves
+    for (var i = 0; i < W * W; i++)
+      if (sim.source[i] && sim.target[i])
+        ctx.fillRect(i % W, (i / W) | 0, 1.01, 1.01);
+    if (phase === 'hold') {
+      for (var i2 = 0; i2 < W * W; i2++)
+        if (sim.source[i2] && !sim.target[i2])
+          ctx.fillRect(i2 % W, (i2 / W) | 0, 1.01, 1.01);
+      return;
+    }
+    // every other module flies from its old cell to its new one
+    var t = sim.time();
+    for (var mv = 0; mv < sim.movers.length; mv++) {
+      var m = sim.movers[mv];
+      var e = t <= m.depart ? 0
+        : t >= m.depart + m.dur ? 1
+        : ease((t - m.depart) / m.dur);
+      ctx.fillRect(m.sx + (m.tx - m.sx) * e,
+                   m.sy + (m.ty - m.sy) * e, 1.01, 1.01);
+    }
+    // the pen: a warm bar at the lifting front
+    var front = sim.frontX();
+    if (phase === 'play' && front > -1 && front < W) {
       ctx.fillStyle = 'rgba(223,160,76,0.35)';
-      ctx.fillRect(front + M - 0.5, M, 1, n);
+      ctx.fillRect(front - 0.5, 0, 1, W);
       ctx.fillStyle = '#000';
     }
   }
@@ -354,15 +448,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createKufi
       if (dt > 0) sim.step(dt);
       draw();
       if (!sim.done()) {
-        var col = Math.max(0, Math.min(nMod, Math.round(nMod - sim.frontX())));
-        setStatus('the pen writes · column ' + col + '/' + nMod
-          + ' · ' + Math.round(100 * sim.reuse()) + '% of the ink reused');
+        var t2 = sim.time(), flying = 0;
+        for (var fv = 0; fv < sim.movers.length; fv++)
+          if (t2 > sim.movers[fv].depart &&
+              t2 < sim.movers[fv].depart + sim.movers[fv].dur) flying++;
+        setStatus('the pen lifts the ink · ' + flying + ' modules in flight'
+          + ' · ' + Math.round(100 * sim.stayPut()) + '% never move');
       } else {
         phase = 'done';
         setStatus('“' + shorten(input.value) + '” in square kufic · '
-          + sim.fitted + '/' + sim.totalChars + ' characters on '
-          + sim.lines + ' lines · ' + Math.round(100 * sim.reuse())
-          + '% of the ink stayed put');
+          + sim.fitted + '/' + sim.totalChars + ' characters · all '
+          + sim.sourceInk + ' modules reused ('
+          + sim.borderInk + ' as border) · '
+          + Math.round(100 * sim.stayPut()) + '% never moved');
       }
     }
     requestAnimationFrame(frame);

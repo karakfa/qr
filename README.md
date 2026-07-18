@@ -34,7 +34,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`blink.html`](blink.html) | Ink islands gray out, blink three times, and vanish — smallest first | 4-connected components removed in ascending size order; one decomposition up front stays exact because whole islands never merge |
 | [`jigsaw.html`](jigsaw.html) | The ink solves itself as a jigsaw: blobs lift, turn, flip, and dock into the snuggest whitespace until everything is one piece | Pieces re-read from the board every move; bridge-splitting, edge-maximizing placement, then a continental compaction endgame; completeness = fraction of possible edge connections made, strictly rising every move |
 | [`flood.html`](flood.html) | Every enclosed pocket of whitespace floods with its own color, then the colors darken until the code is a solid black square | With a boundary wall assumed, the white cells split into closed lakes; each floods as a breadth-first wave, largest first, hues spaced by the golden angle; darkness sweeps in fill order |
-| [`kufic.html`](kufic.html) | A pen sweeps right to left and rewrites the code as square Kufic calligraphy of the same string | Square-Kufic-styled letterforms: one-module strokes, right angles only, a continuous baseline weaving each line into a band; the status reports how much of the code's ink was already in place |
+| [`kufic.html`](kufic.html) | The ink takes flight, module by module, and resettles as square Kufic calligraphy of the same string | Square-Kufic-styled letterforms: one-module strokes, right angles, a woven baseline; ink exactly conserved — the surplus becomes a border frame in the margin, as in banna'i panels |
 
 ## Notes
 
