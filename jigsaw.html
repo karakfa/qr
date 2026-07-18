@@ -105,12 +105,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * QR jigsaw — the ink solves itself. At every step the board is
  * re-read: pieces are the maximal 4-connected blobs of the current
  * picture, so each move is a standalone piece — never a chunk torn
- * from something it has merged with. The largest piece that fits
- * anywhere moves first, trying all 8 orientations (rotations and
- * flips) and landing in the snuggest spot; a landing must touch ink,
- * so total contact strictly grows and the process provably stops:
- * done when no standalone piece fits anywhere. Singles caulk the last
- * gaps. Ink is conserved.
+ * from something it has merged with. Blobs larger than 6 cells may
+ * also be split at a bridge (a single edge whose removal disconnects
+ * them), the smaller side becoming the piece. The largest piece that
+ * fits anywhere moves first, trying all 8 orientations (rotations and
+ * flips), and flies to the NEAREST valid spot (snuggest on ties). A
+ * whole piece must land touching ink; a broken-off piece must touch
+ * two — it gave up one contact by breaking — so total contact grows
+ * every move and the process provably stops. Ink is conserved.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createJigsawSim(cfg) {
@@ -177,74 +179,156 @@ function createJigsawSim(cfg) {
     return out;
   }
 
+  // bridge edges of a component (Tarjan); returns the smaller side of
+  // each split as a candidate piece
+  function splitPiecesOf(cells) {
+    var m = cells.length;
+    var local = {};
+    for (var l = 0; l < m; l++) local[cells[l]] = l;
+    var adj = [];
+    for (var a = 0; a < m; a++) {
+      var i = cells[a], x = i % n, y = (i / n) | 0, nb = [];
+      if (x > 0 && local[i - 1] != null) nb.push(local[i - 1]);
+      if (x < n - 1 && local[i + 1] != null) nb.push(local[i + 1]);
+      if (y > 0 && local[i - n] != null) nb.push(local[i - n]);
+      if (y < n - 1 && local[i + n] != null) nb.push(local[i + n]);
+      adj.push(nb);
+    }
+    var disc = new Int32Array(m), low = new Int32Array(m);
+    for (var d2 = 0; d2 < m; d2++) disc[d2] = -1;
+    var timer = 0, bridges = [];
+    (function dfs(u, pu) {
+      disc[u] = low[u] = timer++;
+      for (var e = 0; e < adj[u].length; e++) {
+        var v = adj[u][e];
+        if (v === pu) continue;
+        if (disc[v] < 0) {
+          dfs(v, u);
+          if (low[v] < low[u]) low[u] = low[v];
+          if (low[v] > disc[u]) bridges.push([u, v]);
+        } else if (disc[v] < low[u]) low[u] = disc[v];
+      }
+    })(0, -1);
+    var out = [];
+    for (var b = 0; b < bridges.length; b++) {
+      var bu = bridges[b][0], bv = bridges[b][1];
+      var side = [], seen = new Uint8Array(m), st = [bv];
+      seen[bv] = 1; seen[bu] = 1;               // wall off the bridge
+      while (st.length) {
+        var u2 = st.pop();
+        side.push(cells[u2]);
+        for (var e2 = 0; e2 < adj[u2].length; e2++) {
+          var v2 = adj[u2][e2];
+          if (!seen[v2]) { seen[v2] = 1; st.push(v2); }
+        }
+      }
+      if (side.length * 2 > m) {                // take the smaller side
+        var inv = [], sset = new Uint8Array(m);
+        for (var s2 = 0; s2 < side.length; s2++) sset[local[side[s2]]] = 1;
+        for (var l2 = 0; l2 < m; l2++) if (!sset[l2]) inv.push(cells[l2]);
+        side = inv;
+      }
+      if (side.length) out.push(side);
+    }
+    return out;
+  }
+
+  // try to place one piece; returns the recorded move or null.
+  // pieces fly to the NEAREST valid fit; snugness breaks ties.
+  function tryPlace(cells, minScore, split) {
+    var minX = n, minY = n;
+    for (var c3 = 0; c3 < cells.length; c3++) {
+      var cx = cells[c3] % n, cy = (cells[c3] / n) | 0;
+      if (cx < minX) minX = cx;
+      if (cy < minY) minY = cy;
+      board[cells[c3]] = 0;                     // lift
+    }
+    var oRelX = [], oRelY = [], maxX0 = 0, maxY0 = 0;
+    for (var c4 = 0; c4 < cells.length; c4++) {
+      var rx = cells[c4] % n - minX, ry = ((cells[c4] / n) | 0) - minY;
+      oRelX.push(rx); oRelY.push(ry);
+      if (rx > maxX0) maxX0 = rx;
+      if (ry > maxY0) maxY0 = ry;
+    }
+    var fcx = minX + (maxX0 + 1) / 2, fcy = minY + (maxY0 + 1) / 2;
+    var vars = variantsOf(oRelX, oRelY);
+    var bestD = Infinity, bestS = -1, cands = [];
+    for (var v = 0; v < vars.length; v++) {
+      var vr = vars[v], maxX = 0, maxY = 0;
+      for (var c5 = 0; c5 < vr.relX.length; c5++) {
+        if (vr.relX[c5] > maxX) maxX = vr.relX[c5];
+        if (vr.relY[c5] > maxY) maxY = vr.relY[c5];
+      }
+      for (var py = 0; py + maxY < n; py++)
+        for (var px = 0; px + maxX < n; px++) {
+          var ok = true, score = 0;
+          for (var c6 = 0; c6 < vr.relX.length && ok; c6++) {
+            var tx = px + vr.relX[c6], ty = py + vr.relY[c6];
+            if (board[ty * n + tx]) { ok = false; break; }
+            if (tx > 0 && board[ty * n + tx - 1]) score++;
+            if (tx < n - 1 && board[ty * n + tx + 1]) score++;
+            if (ty > 0 && board[(ty - 1) * n + tx]) score++;
+            if (ty < n - 1 && board[(ty + 1) * n + tx]) score++;
+          }
+          if (!ok || score < minScore) continue;
+          var ddx = px + (maxX + 1) / 2 - fcx, ddy = py + (maxY + 1) / 2 - fcy;
+          var dist = ddx * ddx + ddy * ddy;
+          if (dist < 1e-9) continue;            // must actually move
+          if (dist < bestD - 1e-9 ||
+              (dist < bestD + 1e-9 && score > bestS)) {
+            bestD = dist; bestS = score; cands = [[px, py, v]];
+          } else if (dist < bestD + 1e-9 && score === bestS) {
+            cands.push([px, py, v]);
+          }
+        }
+    }
+    if (!cands.length) {                        // fits nowhere: put back
+      for (var c7 = 0; c7 < cells.length; c7++) board[cells[c7]] = 1;
+      return null;
+    }
+    var pick = cands[(rand() * cands.length) | 0];
+    var vr2 = vars[pick[2]];
+    var maxX1 = 0, maxY1 = 0;
+    for (var c8 = 0; c8 < vr2.relX.length; c8++) {
+      if (vr2.relX[c8] > maxX1) maxX1 = vr2.relX[c8];
+      if (vr2.relY[c8] > maxY1) maxY1 = vr2.relY[c8];
+      board[(pick[1] + vr2.relY[c8]) * n + pick[0] + vr2.relX[c8]] = 1;
+    }
+    return {
+      oRelX: oRelX, oRelY: oRelY, vRelX: vr2.relX, vRelY: vr2.relY,
+      rot: vr2.rot * Math.PI / 2, flip: vr2.flip, size: cells.length,
+      split: !!split,
+      fromX: minX, fromY: minY, toX: pick[0], toY: pick[1],
+      c0x: (maxX0 + 1) / 2, c0y: (maxY0 + 1) / 2,
+      c1x: (maxX1 + 1) / 2, c1y: (maxY1 + 1) / 2
+    };
+  }
+
   // ---- plan the whole solve, re-reading the board every move ----
   var board = Uint8Array.from(grid);
   var moves = [];
   for (var guard = 0; guard < 3000; guard++) {
     var comps = componentsOf(board);
-    var made = false;
-    for (var ci = 0; ci < comps.length && !made; ci++) {
-      var cells = comps[ci];
-      var minX = n, minY = n;
-      for (var c3 = 0; c3 < cells.length; c3++) {
-        var cx = cells[c3] % n, cy = (cells[c3] / n) | 0;
-        if (cx < minX) minX = cx;
-        if (cy < minY) minY = cy;
-        board[cells[c3]] = 0;                    // lift
+    // candidates: whole blobs, plus bridge-splits of blobs larger than 6
+    var candsList = [];
+    for (var ci = 0; ci < comps.length; ci++) {
+      candsList.push({ cells: comps[ci], minScore: 1, split: false });
+      if (comps[ci].length > 6) {
+        var sides = splitPiecesOf(comps[ci]);
+        for (var si = 0; si < sides.length; si++)
+          candsList.push({ cells: sides[si], minScore: 2, split: true });
       }
-      var oRelX = [], oRelY = [];
-      for (var c4 = 0; c4 < cells.length; c4++) {
-        oRelX.push(cells[c4] % n - minX);
-        oRelY.push(((cells[c4] / n) | 0) - minY);
-      }
-      var vars = variantsOf(oRelX, oRelY);
-      var best = 0, cands = [];                  // landing must touch ink
-      for (var v = 0; v < vars.length; v++) {
-        var vr = vars[v], maxX = 0, maxY = 0;
-        for (var c5 = 0; c5 < vr.relX.length; c5++) {
-          if (vr.relX[c5] > maxX) maxX = vr.relX[c5];
-          if (vr.relY[c5] > maxY) maxY = vr.relY[c5];
-        }
-        for (var py = 0; py + maxY < n; py++)
-          for (var px = 0; px + maxX < n; px++) {
-            var ok = true, score = 0;
-            for (var c6 = 0; c6 < vr.relX.length && ok; c6++) {
-              var tx = px + vr.relX[c6], ty = py + vr.relY[c6];
-              if (board[ty * n + tx]) { ok = false; break; }
-              if (tx > 0 && board[ty * n + tx - 1]) score++;
-              if (tx < n - 1 && board[ty * n + tx + 1]) score++;
-              if (ty > 0 && board[(ty - 1) * n + tx]) score++;
-              if (ty < n - 1 && board[(ty + 1) * n + tx]) score++;
-            }
-            if (!ok || score < 1) continue;
-            if (score > best) { best = score; cands = [[px, py, v]]; }
-            else if (score === best) cands.push([px, py, v]);
-          }
-      }
-      if (!cands.length) {                       // fits nowhere: put back
-        for (var c7 = 0; c7 < cells.length; c7++) board[cells[c7]] = 1;
-        continue;
-      }
-      var pick = cands[(rand() * cands.length) | 0];
-      var vr2 = vars[pick[2]];
-      var maxX0 = 0, maxY0 = 0, maxX1 = 0, maxY1 = 0;
-      for (var c8 = 0; c8 < oRelX.length; c8++) {
-        if (oRelX[c8] > maxX0) maxX0 = oRelX[c8];
-        if (oRelY[c8] > maxY0) maxY0 = oRelY[c8];
-        if (vr2.relX[c8] > maxX1) maxX1 = vr2.relX[c8];
-        if (vr2.relY[c8] > maxY1) maxY1 = vr2.relY[c8];
-        board[(pick[1] + vr2.relY[c8]) * n + pick[0] + vr2.relX[c8]] = 1;
-      }
-      moves.push({
-        oRelX: oRelX, oRelY: oRelY, vRelX: vr2.relX, vRelY: vr2.relY,
-        rot: vr2.rot * Math.PI / 2, flip: vr2.flip, size: cells.length,
-        fromX: minX, fromY: minY, toX: pick[0], toY: pick[1],
-        c0x: (maxX0 + 1) / 2, c0y: (maxY0 + 1) / 2,
-        c1x: (maxX1 + 1) / 2, c1y: (maxY1 + 1) / 2
-      });
-      made = true;
     }
+    candsList.sort(function (a, b) {            // largest first; whole first
+      return b.cells.length - a.cells.length ||
+             (a.split ? 1 : 0) - (b.split ? 1 : 0);
+    });
+    var made = null;
+    for (var k2 = 0; k2 < candsList.length && !made; k2++)
+      made = tryPlace(candsList[k2].cells, candsList[k2].minScore,
+                      candsList[k2].split);
     if (!made) break;
+    moves.push(made);
   }
 
   // ---- animate: gray blink, fly gray, gray blink, settle black ----
@@ -310,7 +394,7 @@ function createJigsawSim(cfg) {
         c0x: m.c0x, c0y: m.c0y,
         cx: m.fromX + m.c0x + (m.toX + m.c1x - m.fromX - m.c0x) * e,
         cy: m.fromY + m.c0y + (m.toY + m.c1y - m.fromY - m.c0y) * e,
-        rot: m.rot, flip: m.flip, e: e, gray: gray,
+        rot: m.rot, flip: m.flip, e: e, gray: gray, split: m.split,
         lift: phase === 'fly' ? 1 : 0
       };
     },
@@ -455,9 +539,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
       if (dt > 0) sim.step(dt);
       draw();
       if (!sim.done()) {
-        var sz = sim.currentSize();
+        var fl = sim.flying();
         setStatus('piece ' + sim.currentMove() + '/' + sim.movesTotal
-          + (sz ? ' · ' + sz + (sz === 1 ? ' cell' : ' cells') : '')
+          + (fl ? ' · ' + fl.size + (fl.size === 1 ? ' cell' : ' cells')
+                + (fl.split ? ', split off' : '') : '')
           + ' · ' + Math.max(0, Math.round(100 * (1 - sim.perimeter() / per0)))
           + '% tidier');
       } else {
