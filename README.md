@@ -33,7 +33,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`twist.html`](twist.html) | Random square patches twist 90° left or right until the code is churned to noise | 4×4–8×8 patches rotate like a twisty puzzle, corners overhanging mid-turn; ink conserved; done when agreement with the original sits at chance |
 | [`blink.html`](blink.html) | Ink islands gray out, blink three times, and vanish — smallest first | 4-connected components removed in ascending size order; one decomposition up front stays exact because whole islands never merge |
 | [`jigsaw.html`](jigsaw.html) | The ink solves itself as a jigsaw: blobs lift, turn, flip, and dock into the snuggest whitespace until everything is one piece | Pieces re-read from the board every move; bridge-splitting, edge-maximizing placement, then a continental compaction endgame; completeness = fraction of possible edge connections made, strictly rising every move |
-| [`flood.html`](flood.html) | Every enclosed pocket of whitespace floods with its own color, then the colors darken until the code is a solid black square | With a boundary wall assumed, the white cells split into closed lakes; each floods as a breadth-first wave, smallest first, hues spaced by the golden angle; darkness sweeps in fill order |
+| [`flood.html`](flood.html) | Every enclosed pocket of whitespace floods with its own color, then the colors darken until the code is a solid black square | With a boundary wall assumed, the white cells split into closed lakes; each floods as a breadth-first wave, largest first, hues spaced by the golden angle; darkness sweeps in fill order |
 
 ## Notes
 

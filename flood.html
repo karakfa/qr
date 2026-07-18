@@ -105,8 +105,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * QR flood — the whitespace drowns. With a boundary wall assumed
  * around the code, every 4-connected blob of white cells is a closed
  * lake — the outer background included. Each lake floods with its own
- * color as a breadth-first wave from its seed, smallest lakes first,
- * the big background last, hues spaced by the golden angle. Then the
+ * color as a breadth-first wave from its seed, largest lakes first —
+ * the big background opens — hues spaced by the golden angle. Then the
  * colors darken, lake by lake in the order they filled, until the
  * whole code is a solid black square.
  * cfg: {dark: [[x,y]...], n}
@@ -147,10 +147,10 @@ function createFloodSim(cfg) {
     lakes.push({ cells: cells, maxDepth: maxDepth });
   }
 
-  // flood order: smallest lakes first, the background flood is the finale
+  // flood order: largest lakes first — the background flood opens
   var order = [];
   for (var o = 0; o < lakes.length; o++) order.push(o);
-  order.sort(function (a, b) { return lakes[a].cells.length - lakes[b].cells.length; });
+  order.sort(function (a, b) { return lakes[b].cells.length - lakes[a].cells.length; });
   var rank = new Int32Array(lakes.length);
   var hue = new Float32Array(lakes.length);
   var fillStart = new Float32Array(lakes.length);

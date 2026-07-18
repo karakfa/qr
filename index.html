@@ -901,7 +901,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       sizesF.push(cntF);
     }
     var orderF = sizesF.map(function (_, i2) { return i2; });
-    orderF.sort(function (a, b) { return sizesF[a] - sizesF[b]; });
+    orderF.sort(function (a, b) { return sizesF[b] - sizesF[a]; });
     var hueF = new Float32Array(sizesF.length);
     for (var qf2 = 0; qf2 < orderF.length; qf2++)
       hueF[orderF[qf2]] = (qf2 * 137.508) % 360;
