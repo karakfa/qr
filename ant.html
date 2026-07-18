@@ -223,7 +223,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createAntS
     canvas.width = px * dpr;
     canvas.height = px * dpr;
     canvas.style.width = px + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dpr * cell, 0, 0, dpr * cell, 0, 0);
   }
 
   function draw() {
