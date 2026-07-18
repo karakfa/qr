@@ -102,13 +102,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 
 <script>
 /*
- * QR jigsaw — the ink solves itself. Pieces are the 4-connected black
- * blobs. Largest first, each piece lifts off, tries all 8 orientations
- * (rotations and flips), searches the whitespace for every spot its
- * shape fits, and flies to the snuggest one — the placement touching
- * the most ink. Pieces that fit nowhere stay put. The 1×1 singletons
- * go last, caulking the leftover gaps. Ink is conserved; the code
- * defragments into continents.
+ * QR jigsaw — the ink solves itself. At every step the board is
+ * re-read: pieces are the maximal 4-connected blobs of the current
+ * picture, so each move is a standalone piece — never a chunk torn
+ * from something it has merged with. The largest piece that fits
+ * anywhere moves first, trying all 8 orientations (rotations and
+ * flips) and landing in the snuggest spot; a landing must touch ink,
+ * so total contact strictly grows and the process provably stops:
+ * done when no standalone piece fits anywhere. Singles caulk the last
+ * gaps. Ink is conserved.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createJigsawSim(cfg) {
@@ -116,35 +118,39 @@ function createJigsawSim(cfg) {
   var n = cfg.n;
   var rand = cfg.rand || Math.random;
 
-  var LIFT_T = 0.18, SETTLE_T = 0.12;
-  function flyT(d) { return Math.min(0.9, 0.3 + d * 0.018); }
+  var PRE_T = 0.45, POST_T = 0.45;      // gray blinks before and after
+  function flyT(d) { return Math.min(0.8, 0.25 + d * 0.015); }
+  function speedup(tt) { return 1 + tt / 30; } // the solve accelerates
 
   var grid = new Uint8Array(n * n);
   for (var d = 0; d < cfg.dark.length; d++)
     grid[cfg.dark[d][1] * n + cfg.dark[d][0]] = 1;
 
-  // ---- pieces: 4-connected components, largest first ----
-  var comp = new Int32Array(n * n), pieces = [], stack = [];
-  for (var c0 = 0; c0 < n * n; c0++) comp[c0] = -1;
-  for (var s = 0; s < n * n; s++) {
-    if (!grid[s] || comp[s] >= 0) continue;
-    var id = pieces.length, cells = [];
-    stack.push(s); comp[s] = id;
-    while (stack.length) {
-      var i = stack.pop();
-      cells.push(i);
-      var x = i % n, y = (i / n) | 0;
-      if (x > 0 && grid[i - 1] && comp[i - 1] < 0) { comp[i - 1] = id; stack.push(i - 1); }
-      if (x < n - 1 && grid[i + 1] && comp[i + 1] < 0) { comp[i + 1] = id; stack.push(i + 1); }
-      if (y > 0 && grid[i - n] && comp[i - n] < 0) { comp[i - n] = id; stack.push(i - n); }
-      if (y < n - 1 && grid[i + n] && comp[i + n] < 0) { comp[i + n] = id; stack.push(i + n); }
+  // ---- helpers over a board ----
+  function componentsOf(b) {
+    var comp = new Int32Array(n * n), out = [], stack = [];
+    for (var i0 = 0; i0 < n * n; i0++) comp[i0] = -1;
+    for (var s = 0; s < n * n; s++) {
+      if (!b[s] || comp[s] >= 0) continue;
+      var cells = [];
+      stack.push(s); comp[s] = 1;
+      while (stack.length) {
+        var i = stack.pop();
+        cells.push(i);
+        var x = i % n, y = (i / n) | 0;
+        if (x > 0 && b[i - 1] && comp[i - 1] < 0) { comp[i - 1] = 1; stack.push(i - 1); }
+        if (x < n - 1 && b[i + 1] && comp[i + 1] < 0) { comp[i + 1] = 1; stack.push(i + 1); }
+        if (y > 0 && b[i - n] && comp[i - n] < 0) { comp[i - n] = 1; stack.push(i - n); }
+        if (y < n - 1 && b[i + n] && comp[i + n] < 0) { comp[i + n] = 1; stack.push(i + n); }
+      }
+      out.push(cells);
     }
-    pieces.push(cells);
+    out.sort(function (a, b2) { return b2.length - a.length; });
+    return out;
   }
-  pieces.sort(function (a, b) { return b.length - a.length; });
 
-  // all distinct orientations: flip (x → −x) first, then k quarter turns
-  // (x,y) → (−y,x), matching canvas rotate()+scale(−1,1) composition
+  // flip (x → −x) first, then k quarter turns (x,y) → (−y,x); matches
+  // canvas rotate()+scale(−1,1) composition
   function variantsOf(relX, relY) {
     var seen = {}, out = [];
     for (var f = 0; f < 2; f++)
@@ -171,78 +177,80 @@ function createJigsawSim(cfg) {
     return out;
   }
 
-  // ---- precompute the whole move sequence on a working board ----
+  // ---- plan the whole solve, re-reading the board every move ----
   var board = Uint8Array.from(grid);
-  var moves = [], stayed = 0;
-
-  function planPiece(cells) {
-    var minX = n, minY = n;
-    for (var c = 0; c < cells.length; c++) {
-      var x = cells[c] % n, y = (cells[c] / n) | 0;
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-    }
-    var oRelX = [], oRelY = [];
-    for (var c2 = 0; c2 < cells.length; c2++) {
-      oRelX.push(cells[c2] % n - minX);
-      oRelY.push(((cells[c2] / n) | 0) - minY);
-    }
-    for (var c3 = 0; c3 < cells.length; c3++) board[cells[c3]] = 0;
-
-    var vars = variantsOf(oRelX, oRelY);
-    var best = -1, cands = [];
-    for (var v = 0; v < vars.length; v++) {
-      var vr = vars[v], maxX = 0, maxY = 0;
-      for (var c4 = 0; c4 < vr.relX.length; c4++) {
-        if (vr.relX[c4] > maxX) maxX = vr.relX[c4];
-        if (vr.relY[c4] > maxY) maxY = vr.relY[c4];
+  var moves = [];
+  for (var guard = 0; guard < 3000; guard++) {
+    var comps = componentsOf(board);
+    var made = false;
+    for (var ci = 0; ci < comps.length && !made; ci++) {
+      var cells = comps[ci];
+      var minX = n, minY = n;
+      for (var c3 = 0; c3 < cells.length; c3++) {
+        var cx = cells[c3] % n, cy = (cells[c3] / n) | 0;
+        if (cx < minX) minX = cx;
+        if (cy < minY) minY = cy;
+        board[cells[c3]] = 0;                    // lift
       }
-      for (var py = 0; py + maxY < n; py++)
-        for (var px = 0; px + maxX < n; px++) {
-          if (v === 0 && px === minX && py === minY) continue; // must move
-          var ok = true, score = 0;
-          for (var c5 = 0; c5 < vr.relX.length && ok; c5++) {
-            var tx = px + vr.relX[c5], ty = py + vr.relY[c5];
-            if (board[ty * n + tx]) { ok = false; break; }
-            if (tx > 0 && board[ty * n + tx - 1]) score++;
-            if (tx < n - 1 && board[ty * n + tx + 1]) score++;
-            if (ty > 0 && board[(ty - 1) * n + tx]) score++;
-            if (ty < n - 1 && board[(ty + 1) * n + tx]) score++;
-          }
-          if (!ok) continue;
-          if (score > best) { best = score; cands = [[px, py, v]]; }
-          else if (score === best) cands.push([px, py, v]);
+      var oRelX = [], oRelY = [];
+      for (var c4 = 0; c4 < cells.length; c4++) {
+        oRelX.push(cells[c4] % n - minX);
+        oRelY.push(((cells[c4] / n) | 0) - minY);
+      }
+      var vars = variantsOf(oRelX, oRelY);
+      var best = 0, cands = [];                  // landing must touch ink
+      for (var v = 0; v < vars.length; v++) {
+        var vr = vars[v], maxX = 0, maxY = 0;
+        for (var c5 = 0; c5 < vr.relX.length; c5++) {
+          if (vr.relX[c5] > maxX) maxX = vr.relX[c5];
+          if (vr.relY[c5] > maxY) maxY = vr.relY[c5];
         }
+        for (var py = 0; py + maxY < n; py++)
+          for (var px = 0; px + maxX < n; px++) {
+            var ok = true, score = 0;
+            for (var c6 = 0; c6 < vr.relX.length && ok; c6++) {
+              var tx = px + vr.relX[c6], ty = py + vr.relY[c6];
+              if (board[ty * n + tx]) { ok = false; break; }
+              if (tx > 0 && board[ty * n + tx - 1]) score++;
+              if (tx < n - 1 && board[ty * n + tx + 1]) score++;
+              if (ty > 0 && board[(ty - 1) * n + tx]) score++;
+              if (ty < n - 1 && board[(ty + 1) * n + tx]) score++;
+            }
+            if (!ok || score < 1) continue;
+            if (score > best) { best = score; cands = [[px, py, v]]; }
+            else if (score === best) cands.push([px, py, v]);
+          }
+      }
+      if (!cands.length) {                       // fits nowhere: put back
+        for (var c7 = 0; c7 < cells.length; c7++) board[cells[c7]] = 1;
+        continue;
+      }
+      var pick = cands[(rand() * cands.length) | 0];
+      var vr2 = vars[pick[2]];
+      var maxX0 = 0, maxY0 = 0, maxX1 = 0, maxY1 = 0;
+      for (var c8 = 0; c8 < oRelX.length; c8++) {
+        if (oRelX[c8] > maxX0) maxX0 = oRelX[c8];
+        if (oRelY[c8] > maxY0) maxY0 = oRelY[c8];
+        if (vr2.relX[c8] > maxX1) maxX1 = vr2.relX[c8];
+        if (vr2.relY[c8] > maxY1) maxY1 = vr2.relY[c8];
+        board[(pick[1] + vr2.relY[c8]) * n + pick[0] + vr2.relX[c8]] = 1;
+      }
+      moves.push({
+        oRelX: oRelX, oRelY: oRelY, vRelX: vr2.relX, vRelY: vr2.relY,
+        rot: vr2.rot * Math.PI / 2, flip: vr2.flip, size: cells.length,
+        fromX: minX, fromY: minY, toX: pick[0], toY: pick[1],
+        c0x: (maxX0 + 1) / 2, c0y: (maxY0 + 1) / 2,
+        c1x: (maxX1 + 1) / 2, c1y: (maxY1 + 1) / 2
+      });
+      made = true;
     }
-    if (best < 0) {
-      for (var c6 = 0; c6 < cells.length; c6++) board[cells[c6]] = 1;
-      stayed++;
-      return;
-    }
-    var pick = cands[(rand() * cands.length) | 0];
-    var vr2 = vars[pick[2]];
-    var maxX0 = 0, maxY0 = 0, maxX1 = 0, maxY1 = 0;
-    for (var c7 = 0; c7 < oRelX.length; c7++) {
-      if (oRelX[c7] > maxX0) maxX0 = oRelX[c7];
-      if (oRelY[c7] > maxY0) maxY0 = oRelY[c7];
-      if (vr2.relX[c7] > maxX1) maxX1 = vr2.relX[c7];
-      if (vr2.relY[c7] > maxY1) maxY1 = vr2.relY[c7];
-      board[(pick[1] + vr2.relY[c7]) * n + pick[0] + vr2.relX[c7]] = 1;
-    }
-    moves.push({
-      oRelX: oRelX, oRelY: oRelY, vRelX: vr2.relX, vRelY: vr2.relY,
-      rot: vr2.rot * Math.PI / 2, flip: vr2.flip, size: cells.length,
-      fromX: minX, fromY: minY, toX: pick[0], toY: pick[1],
-      c0x: (maxX0 + 1) / 2, c0y: (maxY0 + 1) / 2,
-      c1x: (maxX1 + 1) / 2, c1y: (maxY1 + 1) / 2
-    });
+    if (!made) break;
   }
-  for (var p = 0; p < pieces.length; p++) planPiece(pieces[p]);
 
-  // ---- animate the recorded sequence against the live grid ----
+  // ---- animate: gray blink, fly gray, gray blink, settle black ----
   var mi = 0;
-  var phase = moves.length ? 'lift' : 'done';
-  var prog = 0, t = 0;
+  var phase = moves.length ? 'pre' : 'done';
+  var prog = 0, t = 0, started = false;
 
   function moveDur(m) {
     var dx = m.toX + m.c1x - m.fromX - m.c0x;
@@ -250,7 +258,7 @@ function createJigsawSim(cfg) {
     return flyT(Math.sqrt(dx * dx + dy * dy));
   }
 
-  function beginMove(m) {
+  function liftMove(m) {
     for (var c = 0; c < m.oRelX.length; c++)
       grid[(m.fromY + m.oRelY[c]) * n + m.fromX + m.oRelX[c]] = 0;
   }
@@ -258,45 +266,52 @@ function createJigsawSim(cfg) {
     for (var c = 0; c < m.vRelX.length; c++)
       grid[(m.toY + m.vRelY[c]) * n + m.toX + m.vRelX[c]] = 1;
   }
-  if (phase === 'lift') beginMove(moves[0]);
 
   return {
     step: function (dt) {
       if (phase === 'done') return;
+      if (!started) { started = true; liftMove(moves[0]); } // hold stays intact
       t += dt;
-      var budget = dt;
+      var budget = dt * speedup(t);
       while (budget > 1e-9 && phase !== 'done') {
         var m = moves[mi];
-        var dur = phase === 'lift' ? LIFT_T
-                : phase === 'fly' ? moveDur(m) : SETTLE_T;
+        var dur = phase === 'pre' ? PRE_T
+                : phase === 'fly' ? moveDur(m) : POST_T;
         var need = (1 - prog) * dur;
         if (budget < need) { prog += budget / dur; budget = 0; break; }
         budget -= need;
         prog = 0;
-        if (phase === 'lift') phase = 'fly';
-        else if (phase === 'fly') { landMove(m); phase = 'settle'; }
+        if (phase === 'pre') phase = 'fly';
+        else if (phase === 'fly') phase = 'post';
         else {
+          landMove(m);
           mi++;
           if (mi >= moves.length) { phase = 'done'; break; }
-          beginMove(moves[mi]);
-          phase = 'lift';
+          liftMove(moves[mi]);
+          phase = 'pre';
         }
       }
     },
     grid: grid, n: n,
-    // the piece in flight: original shape + interpolated pose, or null
+    // the piece being moved: pose + blink color for the controller
     flying: function () {
-      if (phase === 'done' || phase === 'settle') return null;
+      if (phase === 'done' || !started) return null;
       var m = moves[mi];
-      var p2 = phase === 'fly' ? prog : 0;
-      var e = p2 * p2 * (3 - 2 * p2);
+      var e = 0, gray = true;
+      if (phase === 'pre' || phase === 'post') {
+        e = phase === 'post' ? 1 : 0;
+        gray = ((prog * 3) | 0) !== 1;          // gray–black–gray flashes
+      } else {
+        var p2 = prog;
+        e = p2 * p2 * (3 - 2 * p2);
+      }
       return {
         relX: m.oRelX, relY: m.oRelY, size: m.size,
         c0x: m.c0x, c0y: m.c0y,
         cx: m.fromX + m.c0x + (m.toX + m.c1x - m.fromX - m.c0x) * e,
         cy: m.fromY + m.c0y + (m.toY + m.c1y - m.fromY - m.c0y) * e,
-        rot: m.rot, flip: m.flip, e: e,
-        lift: phase === 'lift' ? prog : 1
+        rot: m.rot, flip: m.flip, e: e, gray: gray,
+        lift: phase === 'fly' ? 1 : 0
       };
     },
     perimeter: function () {
@@ -311,7 +326,7 @@ function createJigsawSim(cfg) {
       }
       return per;
     },
-    pieces: pieces.length, movesTotal: moves.length, stayedCount: stayed,
+    movesTotal: moves.length,
     currentMove: function () { return Math.min(mi + 1, moves.length); },
     currentSize: function () {
       return phase !== 'done' && moves[mi] ? moves[mi].size : null;
@@ -398,9 +413,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
     ctx.rotate(f.rot * f.e);
     ctx.scale(sx === 0 ? 0.02 : sx, 1);
     ctx.translate(-f.c0x, -f.c0y);
-    ctx.fillStyle = 'rgba(0,0,0,0.14)';       // soft shadow under the piece
-    drawPieceCells(f, 0.22, 0.3);
-    ctx.fillStyle = '#000';
+    if (f.lift) {                             // soft shadow while airborne
+      ctx.fillStyle = 'rgba(0,0,0,0.14)';
+      drawPieceCells(f, 0.22, 0.3);
+    }
+    ctx.fillStyle = f.gray ? '#a9a49c' : '#000';
     drawPieceCells(f, 0, 0);
     ctx.restore();
   }
@@ -445,8 +462,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createJigs
           + '% tidier');
       } else {
         phase = 'done';
-        setStatus('solved · ' + sim.movesTotal + ' pieces placed'
-          + (sim.stayedCount ? ' · ' + sim.stayedCount + ' fit nowhere' : '')
+        setStatus('solved · ' + sim.movesTotal + ' moves · nothing fits anywhere'
           + ' · ' + Math.round(100 * (1 - sim.perimeter() / per0))
           + '% tidier than the code');
       }
