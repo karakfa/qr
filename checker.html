@@ -108,8 +108,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * to the ink count; a surplus becomes a thin frame in the quiet-zone
  * margin, a deficit trims blocks off the tail in scan order. Between
  * boards, modules already in place stay put and the rest fly, paired
- * in scan order. Ink is exactly conserved at every stage.
- * cfg: {dark: [[x,y]...], n, scales}
+ * in scan order. After the small scales the block size steps up
+ * geometrically to the two-block diagonal, and the show ends with all
+ * the ink gathered into ONE large block — a centered square of side
+ * ⌈√ink⌉. Ink is exactly conserved at every stage.
+ * cfg: {dark: [[x,y]...], n}
  */
 function createCheckerSim(cfg) {
   'use strict';
@@ -127,7 +130,14 @@ function createCheckerSim(cfg) {
   var ink = 0;
   for (var s = 0; s < W * W; s++) ink += source[s];
 
-  var maxK = cfg.scales || Math.min(6, Math.max(3, (n / 5) | 0));
+  // scales: 1..6, then ×1.5 steps up to the two-block board at ~n/2,
+  // then the single-block finale
+  var ks = [];
+  var half = Math.ceil(n / 2);
+  for (var k0 = 1; k0 <= Math.min(6, half - 1); k0++) ks.push(k0);
+  var kg = Math.round(ks[ks.length - 1] * 1.5);
+  while (kg < half * 0.85) { ks.push(kg); kg = Math.round(kg * 1.5); }
+  ks.push(half);
 
   // margin ring cells (outside the code area), for surplus ink
   var frameCells = [];
@@ -161,12 +171,33 @@ function createCheckerSim(cfg) {
     return bitmap;
   }
 
-  // ---- stages: source → 1×1 → 2×2 → … , with movers per transition ----
-  var stages = [];              // {bitmap, movers, start, holdAt, k}
+  // the finale: one large block, a centered square cut to the ink count
+  function blockTarget() {
+    var s2 = Math.ceil(Math.sqrt(ink));
+    var x0 = EX + ((n - s2) >> 1), y0 = EX + ((n - s2) >> 1);
+    var bitmap = new Uint8Array(W * W);
+    var left = ink;
+    for (var yy = 0; yy < s2 && left > 0; yy++)
+      for (var xx = 0; xx < s2 && left > 0; xx++) {
+        bitmap[(y0 + yy) * W + x0 + xx] = 1;
+        left--;
+      }
+    return { bitmap: bitmap, side: s2 };
+  }
+
+  // ---- stages: source → boards → one block, with movers per transition ----
+  var stages = [];              // {bitmap, movers, start, holdAt, k, final}
   var prev = source;
   var tCursor = LEAD;
-  for (var k = 1; k <= maxK; k++) {
-    var next = checkerTarget(k);
+  var blockSide = 0;
+  for (var ki = 0; ki <= ks.length; ki++) {
+    var isFinal = ki === ks.length;
+    var next;
+    if (isFinal) {
+      var blk = blockTarget();
+      next = blk.bitmap;
+      blockSide = blk.side;
+    } else next = checkerTarget(ks[ki]);
     var srcL = [], tgtL = [];
     for (var g = 0; g < W * W; g++) {
       if (prev[g] && !next[g]) srcL.push(g);
@@ -183,7 +214,8 @@ function createCheckerSim(cfg) {
       });
     }
     stages.push({
-      bitmap: next, prev: prev, movers: movers, k: k,
+      bitmap: next, prev: prev, movers: movers,
+      k: isFinal ? blockSide : ks[ki], final: isFinal,
       start: tCursor, holdAt: tCursor + STAG + FLY
     });
     tCursor += STAG + FLY + DWELL;
@@ -196,7 +228,7 @@ function createCheckerSim(cfg) {
     step: function (dt) { t = Math.min(total, t + dt); },
     n: n, W: W, source: source, stages: stages,
     time: function () { return t; },
-    ink: ink, maxK: maxK,
+    ink: ink, maxK: ks[ks.length - 1], blockSide: blockSide,
     // the running stage index, or −1 before the first
     stageAt: function () {
       for (var i = stages.length - 1; i >= 0; i--)
@@ -333,13 +365,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createChec
           for (var f = 0; f < st.movers.length; f++)
             if (t > st.movers[f].depart && t < st.movers[f].depart + st.movers[f].dur)
               flying++;
-          setStatus('checkerboard ' + st.k + '×' + st.k
+          setStatus((st.final ? 'one block, ' + st.k + '×' + st.k
+              : 'checkerboard ' + st.k + '×' + st.k)
             + (flying ? ' · ' + flying + ' modules in flight' : '')
             + ' · ' + st.movers.length + ' moved this round');
         }
       } else {
         phase = 'done';
         setStatus('checkerboards 1×1 → ' + sim.maxK + '×' + sim.maxK
+          + ' · then one ' + sim.blockSide + '×' + sim.blockSide + ' block'
           + ' · all ' + sim.ink + ' modules reused at every scale');
       }
     }
