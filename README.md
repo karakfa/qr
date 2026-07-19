@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, twenty-six ways to fall apart.
+One QR code, twenty-seven ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -37,6 +37,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`kufic.html`](kufic.html) | The ink takes flight, module by module, and resettles as square Kufic calligraphy of the same string | Square-Kufic-styled letterforms: one-module strokes, right angles, a woven baseline; ink exactly conserved — the surplus becomes a border frame in the margin, as in banna'i panels |
 | [`labyrinth.html`](labyrinth.html) | One lone module wakes up orange, blinks once, and walks the code as a labyrinth until every reachable corridor is explored | Depth-first with a randomized sense of direction; the code's fragmented whitespace means territory matters, so the single with the most to explore wakes up; ends provably back home |
 | [`hilbert.html`](hilbert.html) | Every black module files onto a Hilbert-style curve — space-filling, self-avoiding, self-similar, one unbroken line of the same ink | A generalized Hilbert curve at half density spans the code and holds ~n²/2 cells, almost exactly the ink count; the curve is cut to precisely the ink count, so conservation is exact |
+| [`rings.html`](rings.html) | The ink crystallizes into concentric squares, outermost first; whatever already lies on a ring stays put | Rings at every other offset hold ~n²/2 cells — the ink count again; ~55% of modules never move (finder edges survive as long runs), the rest pair off by center-distance and angle for short radial flights |
 
 ## Notes
 

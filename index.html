@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-six ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-seven ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -300,6 +300,14 @@
         <h2>QR <em>HILBERT</em></h2>
         <p>The ink files onto a space-filling, self-avoiding curve.</p>
         <span class="tag">one line</span>
+      </div>
+    </a>
+    <a class="card" data-href="rings.html" href="rings.html">
+      <div class="thumbwrap"><canvas id="th-rings" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>RINGS</em></h2>
+        <p>The ink crystallizes into concentric squares; long runs stay put.</p>
+        <span class="tag">minimal transport</span>
       </div>
     </a>
   </div>
@@ -1089,6 +1097,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       px(c, lastH[0], lastH[1]);
     }
     c.fillStyle = '#000';
+  }
+
+  // RINGS: the ink as concentric squares, innermost cut to the ink count
+  c = ctx2d('th-rings');
+  if (c) {
+    var inkR = 0;
+    for (var yR = 0; yR < n; yR++) for (var xR = 0; xR < n; xR++)
+      if (dark(xR, yR)) inkR++;
+    var drawnR = 0;
+    for (var oR = 0; oR <= (n - 1) / 2 && drawnR < inkR; oR += 2) {
+      var hiR = n - 1 - oR;
+      var cellsR = [];
+      if (hiR === oR) cellsR.push([oR, oR]);
+      else {
+        for (var xa = oR; xa <= hiR; xa++) cellsR.push([xa, oR]);
+        for (var ya = oR + 1; ya <= hiR; ya++) cellsR.push([hiR, ya]);
+        for (var xb = hiR - 1; xb >= oR; xb--) cellsR.push([xb, hiR]);
+        for (var yb = hiR - 1; yb > oR; yb--) cellsR.push([oR, yb]);
+      }
+      for (var cR = 0; cR < cellsR.length && drawnR < inkR; cR++) {
+        px(c, cellsR[cR][0], cellsR[cR][1]);
+        drawnR++;
+      }
+    }
   }
   }
 
