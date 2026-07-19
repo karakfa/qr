@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-seven ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-eight ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -308,6 +308,14 @@
         <h2>QR <em>RINGS</em></h2>
         <p>The ink crystallizes into concentric squares; long runs stay put.</p>
         <span class="tag">minimal transport</span>
+      </div>
+    </a>
+    <a class="card" data-href="checker.html" href="checker.html">
+      <div class="thumbwrap"><canvas id="th-checker" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>CHECKER</em></h2>
+        <p>The ink re-tiles into ever-coarser checkerboards, ending as one block.</p>
+        <span class="tag">every scale</span>
       </div>
     </a>
   </div>
@@ -1121,6 +1129,27 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         drawnR++;
       }
     }
+  }
+
+  // CHECKER: a 3×3 checkerboard cut to the code's exact ink count
+  c = ctx2d('th-checker');
+  if (c) {
+    var inkC = 0;
+    for (var yC = 0; yC < n; yC++) for (var xC = 0; xC < n; xC++)
+      if (dark(xC, yC)) inkC++;
+    var kC = 3, listsC = [[], []];
+    var bpsC = Math.ceil(n / kC);
+    for (var byC = 0; byC < bpsC; byC++)
+      for (var bxC = 0; bxC < bpsC; bxC++) {
+        var parC = (bxC + byC) & 1;
+        for (var yyC = byC * kC; yyC < Math.min(n, (byC + 1) * kC); yyC++)
+          for (var xxC = bxC * kC; xxC < Math.min(n, (bxC + 1) * kC); xxC++)
+            listsC[parC].push([xxC, yyC]);
+      }
+    var pickC = Math.abs(listsC[0].length - inkC) <= Math.abs(listsC[1].length - inkC)
+      ? listsC[0] : listsC[1];
+    for (var pC = 0; pC < Math.min(inkC, pickC.length); pC++)
+      px(c, pickC[pC][0], pickC[pC][1]);
   }
   }
 

@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, twenty-seven ways to fall apart.
+One QR code, twenty-eight ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -38,6 +38,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`labyrinth.html`](labyrinth.html) | One lone module wakes up orange, blinks once, and walks the code as a labyrinth until every reachable corridor is explored | Depth-first with a randomized sense of direction; the code's fragmented whitespace means territory matters, so the single with the most to explore wakes up; ends provably back home |
 | [`hilbert.html`](hilbert.html) | Every black module files onto a Hilbert-style curve — space-filling, self-avoiding, self-similar, one unbroken line of the same ink | A generalized Hilbert curve at half density spans the code and holds ~n²/2 cells, almost exactly the ink count; the curve is cut to precisely the ink count, so conservation is exact |
 | [`rings.html`](rings.html) | The ink crystallizes into concentric squares, outermost first; whatever already lies on a ring stays put | Rings at every other offset hold ~n²/2 cells — the ink count again; ~55% of modules never move (finder edges survive as long runs), the rest pair off by center-distance and angle for short radial flights |
+| [`checker.html`](checker.html) | The ink re-tiles itself into checkerboards of growing scale — 1×1, 2×2, 3×3, … — and ends gathered into one large block | Each board picks the parity closest to the ink count; surplus becomes a margin frame, deficit trims tail blocks; the finale is a centered ⌈√ink⌉ square; exactly conserved at every stage |
 
 ## Notes
 
