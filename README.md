@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, thirty ways to fall apart.
+One QR code, thirty-one ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -41,6 +41,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`checker.html`](checker.html) | The ink re-tiles itself into checkerboards of growing scale — 1×1, 2×2, 3×3, … — and ends gathered into one large block | Each board picks the parity closest to the ink count; surplus becomes a margin frame, deficit trims tail blocks; the finale is a centered ⌈√ink⌉ square; exactly conserved at every stage |
 | [`clock.html`](clock.html) | The ink becomes an analog clock telling real time — hub, markers, three hands, a second hand that flies to its new angle every tick | The dial is carved from a solid frame (bezel plus corner spandrels) sized to the ink; the frame's corner tips are a breathing pool that balances the hands' changing cell counts, so the total never drifts |
 | [`digital.html`](digital.html) | The ink becomes a seven-segment digital clock, HH:MM:SS, with colons blinking the seconds | Digits sit in a white window carved from a solid frame filled window-outward; changing digits' modules fly to their new segments each second; exactly conserved every tick |
+| [`monster.html`](monster.html) | One lone module turns monster and annihilates every other, then bounds off the far edge in parabolic hops | A cell's toughness is 1 + ⌊log₂(edge-connected block size)⌋, so lone cells fall in one hit and fat finder blobs take seven; the monster finishes each cell, walks the white between meals, and escapes at the end |
 
 ## Notes
 

@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, thirty ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty-one ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -332,6 +332,14 @@
         <h2>QR <em>DIGITAL</em></h2>
         <p>A seven-segment clock in conserved ink; the colons blink the seconds.</p>
         <span class="tag">88:88:88</span>
+      </div>
+    </a>
+    <a class="card" data-href="monster.html" href="monster.html">
+      <div class="thumbwrap"><canvas id="th-monster" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>MONSTER</em></h2>
+        <p>A lone module eats every other; tougher blocks take more bumps.</p>
+        <span class="tag">log&#8322; hp</span>
       </div>
     </a>
   </div>
@@ -1227,6 +1235,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     c.fillStyle = '#dfa04c';
     px(c, x0T + 2 * dwT + 2, y0T + midT - 2);
     px(c, x0T + 2 * dwT + 2, y0T + midT + 2);
+    c.fillStyle = '#000';
+  }
+
+  // MONSTER: the code mid-rampage — a bite eaten out, monster at the frontier
+  c = ctx2d('th-monster');
+  if (c) {
+    var moxM = (n * 0.34) | 0, moyM = (n * 0.58) | 0, rM = (n * 0.28) | 0;
+    for (var yM = 0; yM < n; yM++) for (var xM = 0; xM < n; xM++) {
+      if (!dark(xM, yM)) continue;
+      var ddM = Math.abs(xM - moxM) + Math.abs(yM - moyM);
+      if (ddM < rM) continue;                        // already devoured
+      c.fillStyle = ddM < rM + 2 ? '#e79a92' : '#000'; // wounded frontier
+      px(c, xM, yM);
+    }
+    c.fillStyle = '#d63a2f';
+    px(c, moxM, moyM);
     c.fillStyle = '#000';
   }
   }
