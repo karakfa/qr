@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, thirty-two ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty-three ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -348,6 +348,14 @@
         <h2>QR <em>MONOGRAM</em></h2>
         <p>The ink sets into a bold &ldquo;QR&rdquo; monogram, framed like a badge.</p>
         <span class="tag">ink conserved</span>
+      </div>
+    </a>
+    <a class="card" data-href="truchet.html" href="truchet.html">
+      <div class="thumbwrap"><canvas id="th-truchet" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>TRUCHET</em></h2>
+        <p>The code weaves into a maze of arcs; every curve gets its own color.</p>
+        <span class="tag">random hues</span>
       </div>
     </a>
   </div>
@@ -1303,6 +1311,81 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     for (var bg = 0; bg < n; bg++) {          // badge border on the outer ring
       px(c, bg, 0); px(c, bg, n - 1); px(c, 0, bg); px(c, n - 1, bg);
     }
+  }
+
+  // TRUCHET: the code woven into a maze of arcs, every curve its own hue
+  c = ctx2d('th-truchet');
+  if (c) {
+    var nHT = n * (n + 1);
+    function HidT(row, col) { return row * n + col; }
+    function VidT(col, row) { return nHT + col * n + row; }
+    var arcsT = [], arcsOfNodeT = [];
+    for (var iT = 0; iT < 2 * nHT; iT++) arcsOfNodeT.push([]);
+    function addArcT(a, b, tile, corner) {
+      var idx = arcsT.length;
+      arcsT.push({ a: a, b: b, tile: tile, corner: corner });
+      arcsOfNodeT[a].push(idx); arcsOfNodeT[b].push(idx);
+    }
+    for (var rT = 0; rT < n; rT++) for (var cT = 0; cT < n; cT++) {
+      var topT = HidT(rT, cT), botT = HidT(rT + 1, cT);
+      var leftT = VidT(cT, rT), rightT = VidT(cT + 1, rT);
+      var tileT = rT * n + cT;
+      if (dark(cT, rT)) { addArcT(topT, leftT, tileT, 0); addArcT(botT, rightT, tileT, 2); }
+      else { addArcT(topT, rightT, tileT, 1); addArcT(botT, leftT, tileT, 3); }
+    }
+    var visN = new Uint8Array(2 * nHT), visA = new Uint8Array(arcsT.length);
+    var compsT = [];
+    function otherNodeT(ai, node) { var a = arcsT[ai]; return a.a === node ? a.b : a.a; }
+    function otherArcT(node, from) {
+      var l = arcsOfNodeT[node];
+      return l.length === 1 ? -1 : (l[0] === from ? l[1] : l[0]);
+    }
+    for (var sT = 0; sT < 2 * nHT; sT++) {
+      if (arcsOfNodeT[sT].length !== 1 || visN[sT]) continue;
+      var seqT = [], curN = sT, curA = arcsOfNodeT[sT][0];
+      visN[sT] = 1;
+      while (true) {
+        visA[curA] = 1; seqT.push(curA);
+        var nx = otherNodeT(curA, curN); visN[nx] = 1;
+        var na = otherArcT(nx, curA);
+        if (na < 0) break;
+        curN = nx; curA = na;
+      }
+      compsT.push(seqT);
+    }
+    for (var s2T = 0; s2T < 2 * nHT; s2T++) {
+      if (visN[s2T]) continue;
+      var seq2T = [], startN = s2T, curN2 = s2T, curA2 = arcsOfNodeT[s2T][0];
+      while (true) {
+        visA[curA2] = 1; visN[curN2] = 1; seq2T.push(curA2);
+        var nx2 = otherNodeT(curA2, curN2);
+        if (nx2 === startN) break;
+        curA2 = otherArcT(nx2, curA2); curN2 = nx2;
+      }
+      compsT.push(seq2T);
+    }
+    function cornerGeomT(r, cc, corner) {
+      switch (corner) {
+        case 0: return [cc, r, 0, Math.PI / 2];
+        case 1: return [cc + 1, r, Math.PI / 2, Math.PI];
+        case 2: return [cc + 1, r + 1, Math.PI, 1.5 * Math.PI];
+        default: return [cc, r + 1, 1.5 * Math.PI, 2 * Math.PI];
+      }
+    }
+    c.lineWidth = 0.16;
+    c.lineCap = 'round';
+    for (var ciT = 0; ciT < compsT.length; ciT++) {
+      c.strokeStyle = 'hsl(' + ((rnd() * 360) | 0) + ',72%,50%)';
+      var seqTc = compsT[ciT];
+      for (var kT = 0; kT < seqTc.length; kT++) {
+        var arT = arcsT[seqTc[kT]];
+        var gT = cornerGeomT((arT.tile / n) | 0, arT.tile % n, arT.corner);
+        c.beginPath();
+        c.arc(gT[0] + M, gT[1] + M, 0.5, gT[2], gT[3]);
+        c.stroke();
+      }
+    }
+    c.fillStyle = '#000';
   }
   }
 
