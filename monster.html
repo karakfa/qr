@@ -323,9 +323,45 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createMons
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var sim = null, nMod = 0, fullDark = null;
-  var phase = 'hold';   // 'hold' | 'play' | 'done'
+  var phase = 'hold';   // 'hold' | 'play' | 'escape' | 'gone'
   var holdStart = 0, lastFrame = 0;
   var cell = 14;
+  var esc = null;       // escape schedule, built when the board is clear
+  var escT = 0, jumps = 0;
+
+  // build the parabolic getaway from the monster's last resting spot,
+  // in canvas-cell coords (0..W): a drop to the floor, then bounding
+  // hops that carry it off the far side
+  function buildEscape(startCX, startCY) {
+    var W = nMod + 2 * M, floor = W - 1, center = W / 2;
+    var dir = startCX < center ? 1 : -1;      // leave by the opposite side
+    var hopDX = W * 0.24 * dir, peak = W * 0.42, hopDur = 0.5;
+    var segs = [{ kind: 'fall', t0: 0, dur: 0.34,
+                  x0: startCX, x1: startCX, y0: startCY, y1: floor }];
+    var tc = 0.34, x = startCX, nhop = 0;
+    while (true) {
+      var x1 = x + hopDX;
+      segs.push({ kind: 'hop', t0: tc, dur: hopDur, x0: x, x1: x1,
+                  peak: peak, floor: floor });
+      tc += hopDur; nhop++;
+      if (dir > 0 ? x1 >= W : x1 <= 0) break;  // this hop clears the edge
+      x = x1;
+    }
+    return { segs: segs, total: tc, hops: nhop };
+  }
+
+  function escapePose(te) {
+    var segs = esc.segs;
+    for (var i = 0; i < segs.length; i++) {
+      var s = segs[i];
+      if (te < s.t0 || te >= s.t0 + s.dur) continue;
+      var f = (te - s.t0) / s.dur;
+      if (s.kind === 'fall')
+        return { x: s.x0, y: s.y0 + (s.y1 - s.y0) * f * f };
+      return { x: s.x0 + (s.x1 - s.x0) * f, y: s.floor - s.peak * 4 * f * (1 - f) };
+    }
+    return null;   // off the edge — gone
+  }
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg;
@@ -360,6 +396,15 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createMons
     var W = nMod + 2 * M, n = nMod;
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, W, W);
+
+    if (phase === 'escape' || phase === 'gone') {
+      var pe = esc ? escapePose(escT) : null;
+      if (pe) {
+        ctx.fillStyle = RED;
+        ctx.fillRect(pe.x, pe.y, 1.01, 1.01);
+      }
+      return;
+    }
 
     if (phase === 'hold') {
       ctx.fillStyle = '#000';
@@ -428,10 +473,26 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createMons
           setStatus('annihilating · ' + sim.inkLeft() + '/' + sim.totalInk
             + ' left · ' + sim.bumpsSoFar() + ' bumps');
       } else {
-        phase = 'done';
+        // the board is clear — the monster makes its getaway
+        var p = sim.pose();
+        esc = buildEscape(p.x + M, p.y + M);
+        jumps = esc.hops;
+        escT = 0;
+        phase = 'escape';
+        lastFrame = now;
         setStatus('the monster ate all ' + sim.totalInk + ' others in '
-          + sim.totalBumps + ' bumps · toughest block took ' + sim.maxHp
-          + ' · it is alone');
+          + sim.totalBumps + ' bumps — now it bolts');
+      }
+    }
+    if (phase === 'escape') {
+      var dt2 = Math.min((now - lastFrame) / 1000, 1 / 30);
+      lastFrame = now;
+      escT += dt2;
+      draw();
+      if (escT >= esc.total) {
+        phase = 'gone';
+        setStatus('gone in ' + jumps + ' bounds · toughest block cost '
+          + sim.maxHp + ' bumps · nothing left but a clean quiet zone');
       }
     }
     requestAnimationFrame(frame);
