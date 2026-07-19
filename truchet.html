@@ -109,14 +109,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * is the maze. Because every tile always uses all four of its edge
  * midpoints, the arcs always link up smoothly across tile boundaries
  * into a set of closed loops and open paths that exactly cover the
- * grid. Every loop then traces itself in its own color, largest
- * first, hues spaced by the golden angle — except the one or two
- * smallest loops, left alone in plain black. Open paths stay black.
- * cfg: {dark: [[x,y]...], n}
+ * grid. Every loop then traces itself in its own random color. Open
+ * paths stay black.
+ * cfg: {dark: [[x,y]...], n, rand}
  */
 function createTruchetSim(cfg) {
   'use strict';
   var n = cfg.n;
+  var rand = cfg.rand || Math.random;
   var SLOW = 1.5;             // 50% slower reveal, start to finish
   var LEAD = 0.4;
   var WEAVE_T = Math.max(2.0, Math.min(3.6, 1.6 + n * 0.045)) * SLOW;
@@ -207,27 +207,22 @@ function createTruchetSim(cfg) {
     components.push({ type: 'cycle', arcSeq: seq2 });
   }
 
-  // ---- color every loop, largest first, golden-angle hues — except
-  // the one or two smallest, left alone in plain black ----
+  // ---- every loop gets its own random color ----
   var loops = components.filter(function (c) { return c.type === 'cycle'; });
   var paths = components.filter(function (c) { return c.type === 'path'; });
-  var byLenDesc = loops.slice().sort(function (a, b) {
-    return b.arcSeq.length - a.arcSeq.length;
-  });
-  var aloneCount = byLenDesc.length >= 3 ? 2 : byLenDesc.length === 2 ? 1 : 0;
-  var coloredLoops = aloneCount ? byLenDesc.slice(0, -aloneCount) : byLenDesc;
 
   var colorSet = {};           // tile*4+corner -> {order, len, hue}
-  var longestColoredLen = coloredLoops.length ? coloredLoops[0].arcSeq.length : 0;
-  for (var li = 0; li < coloredLoops.length; li++) {
-    var loop = coloredLoops[li], hue = (li * 137.508) % 360;
+  var longestLen = 0;
+  for (var li = 0; li < loops.length; li++) {
+    var loop = loops[li], hue = rand() * 360;
+    if (loop.arcSeq.length > longestLen) longestLen = loop.arcSeq.length;
     for (var h = 0; h < loop.arcSeq.length; h++) {
       var ar = arcs[loop.arcSeq[h]];
       colorSet[ar.tile * 4 + ar.corner] = { order: h, len: loop.arcSeq.length, hue: hue };
     }
   }
 
-  var TRACE_T = Math.max(1.5, Math.min(6.0, longestColoredLen * 0.045)) * SLOW;
+  var TRACE_T = Math.max(1.5, Math.min(6.0, longestLen * 0.045)) * SLOW;
   var weaveEnd = LEAD + WEAVE_T + GROW_DUR;
   var traceEnd = weaveEnd + GAP + TRACE_T;
   var total = traceEnd + TAIL;
@@ -252,8 +247,7 @@ function createTruchetSim(cfg) {
       if (t <= weaveEnd + GAP) return 0;
       return clamp01((t - weaveEnd - GAP) / TRACE_T);
     },
-    colorSet: colorSet, coloredCount: coloredLoops.length,
-    aloneCount: aloneCount, longestColoredLen: longestColoredLen,
+    colorSet: colorSet, coloredCount: loops.length, longestLen: longestLen,
     tiles: n * n, loops: loops.length, paths: paths.length,
     totalArcs: arcs.length,
     stats: function () { return { t: t }; },
@@ -429,8 +423,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createTruc
         phase = 'done';
         statusEl.className = '';
         statusEl.innerHTML = sim.tiles + ' tiles &middot; ' + sim.loops
-          + ' loops (' + sim.coloredCount + ' colored, ' + sim.aloneCount
-          + ' left alone), ' + sim.paths + ' open paths';
+          + ' loops, each its own color &middot; ' + sim.paths + ' open paths';
       }
     }
     requestAnimationFrame(frame);
