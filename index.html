@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, thirty-four ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty-six ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -366,6 +366,22 @@
         <span class="tag">nn + 2-opt</span>
       </div>
     </a>
+    <a class="card" data-href="circuit.html" href="circuit.html">
+      <div class="thumbwrap"><canvas id="th-circuit" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>CIRCUIT</em></h2>
+        <p>The salesman goes taxicab: one closed loop of right-angle traces.</p>
+        <span class="tag">manhattan tsp</span>
+      </div>
+    </a>
+    <a class="card" data-href="momentum.html" href="momentum.html">
+      <div class="thumbwrap"><canvas id="th-momentum" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>MOMENTUM</em></h2>
+        <p>Turning costs, so the tour keeps its heading in long straight runs.</p>
+        <span class="tag">turn penalty</span>
+      </div>
+    </a>
   </div>
   <footer>Each page is a single self-contained HTML file. Type your own text into any of them.</footer>
 </main>
@@ -401,6 +417,90 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return c;
   }
   function px(c, x, y) { c.fillRect(x + M, y + M, 1, 1); }
+
+  // Manhattan travelling-salesman tour with an optional turn penalty
+  // (momentum). turnW 0 = plain taxicab tour; >0 keeps heading. Bounded
+  // so the gallery's per-keystroke redraws stay cheap.
+  function manhattanTour(pts, turnW) {
+    var LP = pts.length;
+    var tr = new Int32Array(LP);
+    if (LP < 2) { for (var z = 0; z < LP; z++) tr[z] = z; return tr; }
+    function man(a, b) { return Math.abs(pts[a][0] - pts[b][0]) + Math.abs(pts[a][1] - pts[b][1]); }
+    function ux(a, b) { var dx = pts[b][0] - pts[a][0], dy = pts[b][1] - pts[a][1], m = Math.sqrt(dx * dx + dy * dy); return m ? dx / m : 0; }
+    function uy(a, b) { var dx = pts[b][0] - pts[a][0], dy = pts[b][1] - pts[a][1], m = Math.sqrt(dx * dx + dy * dy); return m ? dy / m : 0; }
+    function trn(a, b, c) {
+      var ax = ux(a, b), ay = uy(a, b), bx = ux(b, c), by = uy(b, c);
+      if ((ax === 0 && ay === 0) || (bx === 0 && by === 0)) return 0;
+      var d = ax * bx + ay * by; return 1 - (d > 1 ? 1 : d < -1 ? -1 : d);
+    }
+    var vis = new Uint8Array(LP), cur = 0, hx = 0, hy = 0, have = false;
+    vis[0] = 1; tr[0] = 0;
+    for (var i = 1; i < LP; i++) {                 // momentum-aware nearest neighbour
+      var bb = -1, bc = Infinity, bx = 0, by = 0;
+      for (var j = 0; j < LP; j++) {
+        if (vis[j]) continue;
+        var nx = ux(cur, j), ny = uy(cur, j), c = man(cur, j);
+        if (turnW && have) { var dp = hx * nx + hy * ny; c += turnW * (1 - (dp > 1 ? 1 : dp < -1 ? -1 : dp)); }
+        if (c < bc) { bc = c; bb = j; bx = nx; by = ny; }
+      }
+      vis[bb] = 1; tr[i] = bb; cur = bb; hx = bx; hy = by; have = true;
+    }
+    // 2-opt cleanup, bounded so per-keystroke redraws stay cheap; the
+    // turn-aware pass (momentum) is pricier, so it runs fewer/smaller
+    var gate = turnW ? 520 : 700, passes = turnW ? 1 : 3;
+    if (LP <= gate) for (var pass = 0; pass < passes; pass++) {
+      var imp = false;
+      for (var a = 0; a < LP - 1; a++) for (var cc = a + 2; cc < LP; cc++) {
+        if (a === 0 && cc === LP - 1) continue;
+        var c1 = tr[a], c2 = tr[a + 1], c3 = tr[cc], c4 = tr[(cc + 1) % LP];
+        var del = man(c1, c3) + man(c2, c4) - man(c1, c2) - man(c3, c4);
+        if (turnW) {
+          var p1 = tr[(a - 1 + LP) % LP], c2s = tr[(a + 2) % LP], c3p = tr[(cc - 1 + LP) % LP], n4 = tr[(cc + 2) % LP];
+          var oldT = trn(p1, c1, c2) + trn(c1, c2, c2s) + trn(c3p, c3, c4) + trn(c3, c4, n4);
+          var newT = trn(p1, c1, c3) + trn(c2s, c2, c4) + trn(c1, c3, c3p) + trn(c2, c4, n4);
+          del += turnW * (newT - oldT);
+        }
+        if (del < -1e-9) {
+          for (var lo = a + 1, hi = cc; lo < hi; lo++, hi--) { var t = tr[lo]; tr[lo] = tr[hi]; tr[hi] = t; }
+          imp = true;
+        }
+      }
+      if (!imp) break;
+    }
+    return tr;
+  }
+
+  // draw a tour as one closed loop of orthogonal elbows; momentum picks
+  // each bend to continue the arrival axis (long straight runs)
+  function drawTour(c, pts, order, momentum) {
+    var LP = order.length;
+    if (LP < 2) return;
+    function CX(i) { return pts[i][0] + 0.5 + M; }
+    function CY(i) { return pts[i][1] + 0.5 + M; }
+    var axis = new Int8Array(LP);
+    if (momentum) {
+      var last = 0;
+      for (var e = 0; e < LP; e++) {
+        var a = order[e], b = order[(e + 1) % LP];
+        var dx = pts[b][0] - pts[a][0], dy = pts[b][1] - pts[a][1], ax, ar;
+        if (dx === 0) { ax = 1; ar = 1; } else if (dy === 0) { ax = 0; ar = 0; } else { ax = last; ar = 1 - last; }
+        axis[e] = ax; last = ar;
+      }
+    } else for (var e2 = 0; e2 < LP; e2++) axis[e2] = (e2 & 1) ? 1 : 0;
+    c.strokeStyle = '#000';
+    c.lineWidth = 0.30;
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(CX(order[0]), CY(order[0]));
+    for (var k = 0; k < LP; k++) {
+      var u = order[k], v = order[(k + 1) % LP];
+      var co = axis[k] === 0 ? [CX(v), CY(u)] : [CX(u), CY(v)];
+      c.lineTo(co[0], co[1]);
+      c.lineTo(CX(v), CY(v));
+    }
+    c.stroke();
+  }
 
   function drawThumbs() {
   // LIFE: the QR after one B3/S23 step
@@ -1445,6 +1545,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       c.closePath();
       c.stroke();
     }
+  }
+
+  // CIRCUIT: the ink threaded into one closed taxicab tour, right angles only
+  c = ctx2d('th-circuit');
+  if (c) {
+    var ptsC = [];
+    for (var yC = 0; yC < n; yC++) for (var xC = 0; xC < n; xC++) if (dark(xC, yC)) ptsC.push([xC, yC]);
+    if (ptsC.length >= 2) drawTour(c, ptsC, manhattanTour(ptsC, 0), false);
+  }
+
+  // MOMENTUM: the same taxicab tour, but turning costs — it keeps its heading
+  c = ctx2d('th-momentum');
+  if (c) {
+    var ptsMo = [];
+    for (var yMo = 0; yMo < n; yMo++) for (var xMo = 0; xMo < n; xMo++) if (dark(xMo, yMo)) ptsMo.push([xMo, yMo]);
+    if (ptsMo.length >= 2) drawTour(c, ptsMo, manhattanTour(ptsMo, 3), true);
   }
   }
 

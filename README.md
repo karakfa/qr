@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, thirty-four ways to fall apart.
+One QR code, thirty-six ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -45,6 +45,8 @@ variant will encode it (the links pass it along as `?text=`).
 | [`monogram.html`](monogram.html) | The ink sets itself into a big bold "QR" monogram, centered, framed like a badge | A blocky bitmap letterform (ring-and-tail Q, stem/bowl/leg R) rasterized to module scale; ink is exactly conserved, the surplus laying a balanced border frame; stay-put plus fly-in |
 | [`truchet.html`](truchet.html) | Every module becomes a Truchet arc tile chosen by its own color, and the code weaves into a maze where every curve traces itself in its own hue | No randomness in the tiling — dark/light picks the arc orientation — so tiles always link into closed loops and open paths that exactly cover the grid; every curve gets an independent random color, all finishing together |
 | [`tsp.html`](tsp.html) | A travelling salesman threads every black module into a single closed tour, then 2-opt pulls the crossings out | The ink is the city set: a nearest-neighbour tour improved by neighbour-list 2-opt with don't-look bits, until it stops shortening — one loop visiting every module once, ~15% shorter than greedy; ink exactly conserved, every city a module |
+| [`circuit.html`](circuit.html) | The same salesman under taxicab rules: one closed loop that only ever turns at right angles | Manhattan (L1) distance instead of Euclidean; nearest-neighbour + 2-opt on the L1 metric, each edge drawn as an orthogonal elbow (bend orientation alternating by parity) so the tour reads as a circuit of traces; ink exactly conserved |
+| [`momentum.html`](momentum.html) | The taxicab salesman gains inertia: turning costs, so the loop holds its heading and runs in long straight traces | Cost is Manhattan distance plus a per-corner penalty `W·(1−cos θ)`; momentum-aware nearest-neighbour then 2-opt to a true local optimum on the combined cost (a reversal only changes the turn cost at its four cut endpoints); `W` tunable via `?w=` (default 3), elbows chosen to continue the arrival axis |
 
 ## Notes
 
