@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, thirty-three ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty-four ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -356,6 +356,14 @@
         <h2>QR <em>TRUCHET</em></h2>
         <p>The code weaves into a maze of arcs; every curve gets its own color.</p>
         <span class="tag">random hues</span>
+      </div>
+    </a>
+    <a class="card" data-href="tsp.html" href="tsp.html">
+      <div class="thumbwrap"><canvas id="th-tsp" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>TSP</em></h2>
+        <p>A salesman threads every module into one optimized closed loop.</p>
+        <span class="tag">nn + 2-opt</span>
       </div>
     </a>
   </div>
@@ -1386,6 +1394,57 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       }
     }
     c.fillStyle = '#000';
+  }
+
+  // TSP: the ink threaded into one optimized closed tour
+  c = ctx2d('th-tsp');
+  if (c) {
+    var ptsP = [];
+    for (var yP = 0; yP < n; yP++) for (var xP = 0; xP < n; xP++)
+      if (dark(xP, yP)) ptsP.push([xP, yP]);
+    var LP = ptsP.length;
+    if (LP >= 2) {
+      var dP = function (a, b) {
+        var dx = ptsP[a][0] - ptsP[b][0], dy = ptsP[a][1] - ptsP[b][1];
+        return Math.sqrt(dx * dx + dy * dy);
+      };
+      var visP = new Uint8Array(LP), trP = new Int32Array(LP), curP = 0;
+      visP[0] = 1; trP[0] = 0;
+      for (var iP = 1; iP < LP; iP++) {
+        var bP = -1, bdP = Infinity;
+        for (var jP = 0; jP < LP; jP++) {
+          if (visP[jP]) continue;
+          var dd = dP(curP, jP);
+          if (dd < bdP) { bdP = dd; bP = jP; }
+        }
+        visP[bP] = 1; trP[iP] = bP; curP = bP;
+      }
+      if (LP <= 900)                          // tidy the loop; bounded for keystroke redraws
+        for (var passP = 0; passP < 4; passP++) {
+          var impP = false;
+          for (var aP = 0; aP < LP - 1; aP++) for (var cP = aP + 2; cP < LP; cP++) {
+            if (aP === 0 && cP === LP - 1) continue;
+            var A = trP[aP], B = trP[aP + 1], C = trP[cP], D = trP[(cP + 1) % LP];
+            if (dP(A, B) + dP(C, D) > dP(A, C) + dP(B, D) + 1e-9) {
+              for (var lo = aP + 1, hi = cP; lo < hi; lo++, hi--) {
+                var tmp = trP[lo]; trP[lo] = trP[hi]; trP[hi] = tmp;
+              }
+              impP = true;
+            }
+          }
+          if (!impP) break;
+        }
+      c.strokeStyle = '#000';
+      c.lineWidth = 0.32;
+      c.lineJoin = 'round';
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(ptsP[trP[0]][0] + 0.5 + M, ptsP[trP[0]][1] + 0.5 + M);
+      for (var kP = 1; kP < LP; kP++)
+        c.lineTo(ptsP[trP[kP]][0] + 0.5 + M, ptsP[trP[kP]][1] + 0.5 + M);
+      c.closePath();
+      c.stroke();
+    }
   }
   }
 

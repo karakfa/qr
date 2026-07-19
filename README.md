@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, thirty-three ways to fall apart.
+One QR code, thirty-four ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -44,6 +44,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`monster.html`](monster.html) | One lone module turns monster and annihilates every other, then bounds off the far edge in parabolic hops | A cell's toughness is 1 + ⌊log₂(edge-connected block size)⌋, so lone cells fall in one hit and fat finder blobs take seven; the monster finishes each cell, walks the white between meals, and escapes at the end |
 | [`monogram.html`](monogram.html) | The ink sets itself into a big bold "QR" monogram, centered, framed like a badge | A blocky bitmap letterform (ring-and-tail Q, stem/bowl/leg R) rasterized to module scale; ink is exactly conserved, the surplus laying a balanced border frame; stay-put plus fly-in |
 | [`truchet.html`](truchet.html) | Every module becomes a Truchet arc tile chosen by its own color, and the code weaves into a maze where every curve traces itself in its own hue | No randomness in the tiling — dark/light picks the arc orientation — so tiles always link into closed loops and open paths that exactly cover the grid; every curve gets an independent random color, all finishing together |
+| [`tsp.html`](tsp.html) | A travelling salesman threads every black module into a single closed tour, then 2-opt pulls the crossings out | The ink is the city set: a nearest-neighbour tour improved by neighbour-list 2-opt with don't-look bits, until it stops shortening — one loop visiting every module once, ~15% shorter than greedy; ink exactly conserved, every city a module |
 
 ## Notes
 
