@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, thirty-one ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty-two ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -340,6 +340,14 @@
         <h2>QR <em>MONSTER</em></h2>
         <p>A lone module eats every other; tougher blocks take more bumps.</p>
         <span class="tag">log&#8322; hp</span>
+      </div>
+    </a>
+    <a class="card" data-href="monogram.html" href="monogram.html">
+      <div class="thumbwrap"><canvas id="th-monogram" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>MONOGRAM</em></h2>
+        <p>The ink sets into a bold &ldquo;QR&rdquo; monogram, framed like a badge.</p>
+        <span class="tag">ink conserved</span>
       </div>
     </a>
   </div>
@@ -1252,6 +1260,49 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     c.fillStyle = '#d63a2f';
     px(c, moxM, moyM);
     c.fillStyle = '#000';
+  }
+
+  // MONOGRAM: a bold "QR" set from the ink, framed like a badge
+  c = ctx2d('th-monogram');
+  if (c) {
+    var Hg = Math.round(n * 0.60), Lg = Math.round(Hg * 0.66);
+    var gapg = Math.max(2, Math.round(Lg * 0.18));
+    var oxg = (n - (2 * Lg + gapg)) >> 1, oyg = (n - Hg) >> 1;
+    var tg = Math.max(2, Math.round(Lg * 0.24));
+    function Rg(bx) {
+      var midY = Math.round(Hg * 0.48);
+      for (var y = 0; y < Hg; y++) for (var x = 0; x < Lg; x++) {
+        var on = false;
+        if (x < tg) on = true;
+        else if (y < tg) on = true;
+        else if (y < midY && x >= Lg - tg) on = true;
+        else if (y >= midY - tg && y < midY) on = true;
+        else if (y >= midY) {
+          var lx = Math.round(tg + ((y - midY) / (Hg - midY)) * (Lg - 2 * tg));
+          if (x >= lx && x < lx + tg) on = true;
+        }
+        if (on) px(c, bx + x, oyg + y);
+      }
+    }
+    function Qg(bx) {
+      var cx = (Lg - 1) / 2, cy = (Hg - 1) * 0.46, rx = Lg / 2, ry = (Hg - 1) * 0.52;
+      var irx = rx - tg, iry = ry - tg;
+      for (var y = 0; y < Hg; y++) for (var x = 0; x < Lg; x++) {
+        var ax = (x - cx) / rx, ay = (y - cy) / ry, bxi = (x - cx) / irx, byi = (y - cy) / iry;
+        if (ax * ax + ay * ay <= 1 && bxi * bxi + byi * byi > 1) px(c, bx + x, oyg + y);
+      }
+      var sxq = cx + rx * 0.30, syq = cy + ry * 0.30, steps = Math.round(Hg * 0.5);
+      for (var k = 0; k <= steps; k++) {
+        var pxq = sxq + (Lg - 1 - sxq) * k / steps, pyq = syq + (Hg - 1 - syq) * k / steps;
+        for (var w = 0; w < tg; w++) for (var w2 = 0; w2 < tg; w2++)
+          px(c, bx + Math.round(pxq) + w - (tg >> 1), oyg + Math.round(pyq) + w2 - (tg >> 1));
+      }
+    }
+    Qg(oxg);
+    Rg(oxg + Lg + gapg);
+    for (var bg = 0; bg < n; bg++) {          // badge border on the outer ring
+      px(c, bg, 0); px(c, bg, n - 1); px(c, 0, bg); px(c, n - 1, bg);
+    }
   }
   }
 

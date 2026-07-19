@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, thirty-one ways to fall apart.
+One QR code, thirty-two ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -42,6 +42,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`clock.html`](clock.html) | The ink becomes an analog clock telling real time — hub, markers, three hands, a second hand that flies to its new angle every tick | The dial is carved from a solid frame (bezel plus corner spandrels) sized to the ink; the frame's corner tips are a breathing pool that balances the hands' changing cell counts, so the total never drifts |
 | [`digital.html`](digital.html) | The ink becomes a seven-segment digital clock, HH:MM:SS, with colons blinking the seconds | Digits sit in a white window carved from a solid frame filled window-outward; changing digits' modules fly to their new segments each second; exactly conserved every tick |
 | [`monster.html`](monster.html) | One lone module turns monster and annihilates every other, then bounds off the far edge in parabolic hops | A cell's toughness is 1 + ⌊log₂(edge-connected block size)⌋, so lone cells fall in one hit and fat finder blobs take seven; the monster finishes each cell, walks the white between meals, and escapes at the end |
+| [`monogram.html`](monogram.html) | The ink sets itself into a big bold "QR" monogram, centered, framed like a badge | A blocky bitmap letterform (ring-and-tail Q, stem/bowl/leg R) rasterized to module scale; ink is exactly conserved, the surplus laying a balanced border frame; stay-put plus fly-in |
 
 ## Notes
 
