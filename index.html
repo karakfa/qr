@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-eight ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, thirty ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -316,6 +316,22 @@
         <h2>QR <em>CHECKER</em></h2>
         <p>The ink re-tiles into ever-coarser checkerboards, ending as one block.</p>
         <span class="tag">every scale</span>
+      </div>
+    </a>
+    <a class="card" data-href="clock.html" href="clock.html">
+      <div class="thumbwrap"><canvas id="th-clock" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>CLOCK</em></h2>
+        <p>The ink becomes an analog clock telling real time, conserved every tick.</p>
+        <span class="tag">tick tock</span>
+      </div>
+    </a>
+    <a class="card" data-href="digital.html" href="digital.html">
+      <div class="thumbwrap"><canvas id="th-digital" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>DIGITAL</em></h2>
+        <p>A seven-segment clock in conserved ink; the colons blink the seconds.</p>
+        <span class="tag">88:88:88</span>
       </div>
     </a>
   </div>
@@ -1150,6 +1166,68 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       ? listsC[0] : listsC[1];
     for (var pC = 0; pC < Math.min(inkC, pickC.length); pC++)
       px(c, pickC[pC][0], pickC[pC][1]);
+  }
+
+  // CLOCK: an analog face at ten past ten, second hand on thirty
+  c = ctx2d('th-clock');
+  if (c) {
+    var ccx = (n - 1) / 2, ccy = (n - 1) / 2, RfT = ccx - 3;
+    for (var yT = 0; yT < n; yT++) for (var xT = 0; xT < n; xT++) {
+      var ddT = Math.sqrt((xT - ccx) * (xT - ccx) + (yT - ccy) * (yT - ccy));
+      if (ddT > RfT + 0.8) px(c, xT, yT);
+    }
+    px(c, Math.round(ccx), Math.round(ccy));
+    for (var kT = 0; kT < 12; kT++) {
+      var thT = kT * Math.PI / 6, mrT = RfT - 1.2;
+      px(c, Math.round(ccx + mrT * Math.sin(thT)), Math.round(ccy - mrT * Math.cos(thT)));
+    }
+    function handT(theta, len, color) {
+      c.fillStyle = color;
+      var stT = Math.ceil(len * 3);
+      for (var qT = 0; qT <= stT; qT++) {
+        var rrT = (qT / stT) * len;
+        px(c, Math.round(ccx + rrT * Math.sin(theta)), Math.round(ccy - rrT * Math.cos(theta)));
+      }
+    }
+    handT(2 * Math.PI * (10 + 9 / 60) / 12, 0.5 * RfT, '#000');
+    handT(2 * Math.PI * 9 / 60, 0.78 * RfT, '#000');
+    handT(Math.PI, 0.92 * RfT, '#dfa04c');
+    c.fillStyle = '#000';
+  }
+
+  // DIGITAL: seven-segment 10:08, colons lit amber
+  c = ctx2d('th-digital');
+  if (c) {
+    var SEGT = { 0: 'ABCDEF', 1: 'BC', 8: 'ABCDEFG' };
+    var dwT = Math.max(3, Math.floor((n - 5) / 4)), dhT = 2 * dwT - 1;
+    var totT = 4 * dwT + 1 + 4, x0T = (n - totT) >> 1, y0T = (n - dhT) >> 1;
+    var midT = (dhT - 1) / 2;
+    for (var yB = 0; yB < n; yB++) for (var xB = 0; xB < n; xB++)
+      if (yB < y0T - 2 || yB > y0T + dhT + 1) px(c, xB, yB);
+    function digT(x, v) {
+      var sgT = SEGT[v];
+      for (var cT = 0; cT < dwT; cT++) {
+        if (sgT.indexOf('A') >= 0) px(c, x + cT, y0T);
+        if (sgT.indexOf('G') >= 0) px(c, x + cT, y0T + midT);
+        if (sgT.indexOf('D') >= 0) px(c, x + cT, y0T + dhT - 1);
+      }
+      for (var rT = 1; rT < midT; rT++) {
+        if (sgT.indexOf('F') >= 0) px(c, x, y0T + rT);
+        if (sgT.indexOf('B') >= 0) px(c, x + dwT - 1, y0T + rT);
+      }
+      for (var r2T = midT + 1; r2T < dhT - 1; r2T++) {
+        if (sgT.indexOf('E') >= 0) px(c, x, y0T + r2T);
+        if (sgT.indexOf('C') >= 0) px(c, x + dwT - 1, y0T + r2T);
+      }
+    }
+    digT(x0T, 1);
+    digT(x0T + dwT + 1, 0);
+    digT(x0T + 2 * dwT + 4, 0);
+    digT(x0T + 3 * dwT + 5, 8);
+    c.fillStyle = '#dfa04c';
+    px(c, x0T + 2 * dwT + 2, y0T + midT - 2);
+    px(c, x0T + 2 * dwT + 2, y0T + midT + 2);
+    c.fillStyle = '#000';
   }
   }
 

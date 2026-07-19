@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, twenty-eight ways to fall apart.
+One QR code, thirty ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -39,6 +39,8 @@ variant will encode it (the links pass it along as `?text=`).
 | [`hilbert.html`](hilbert.html) | Every black module files onto a Hilbert-style curve — space-filling, self-avoiding, self-similar, one unbroken line of the same ink | A generalized Hilbert curve at half density spans the code and holds ~n²/2 cells, almost exactly the ink count; the curve is cut to precisely the ink count, so conservation is exact |
 | [`rings.html`](rings.html) | The ink crystallizes into concentric squares, outermost first; whatever already lies on a ring stays put | Rings at every other offset hold ~n²/2 cells — the ink count again; ~55% of modules never move (finder edges survive as long runs), the rest pair off by center-distance and angle for short radial flights |
 | [`checker.html`](checker.html) | The ink re-tiles itself into checkerboards of growing scale — 1×1, 2×2, 3×3, … — and ends gathered into one large block | Each board picks the parity closest to the ink count; surplus becomes a margin frame, deficit trims tail blocks; the finale is a centered ⌈√ink⌉ square; exactly conserved at every stage |
+| [`clock.html`](clock.html) | The ink becomes an analog clock telling real time — hub, markers, three hands, a second hand that flies to its new angle every tick | The dial is carved from a solid frame (bezel plus corner spandrels) sized to the ink; the frame's corner tips are a breathing pool that balances the hands' changing cell counts, so the total never drifts |
+| [`digital.html`](digital.html) | The ink becomes a seven-segment digital clock, HH:MM:SS, with colons blinking the seconds | Digits sit in a white window carved from a solid frame filled window-outward; changing digits' modules fly to their new segments each second; exactly conserved every tick |
 
 ## Notes
 
