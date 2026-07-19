@@ -88,7 +88,7 @@
 <main>
   <header>
     <h1>QR <span>PLAYGROUND</span></h1>
-    <p class="sub">One QR code, twenty-five ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
+    <p class="sub">One QR code, twenty-six ways to fall apart. Every page opens with a scannable code &mdash; you get four seconds before the physics starts.</p>
     <div class="controls">
       <input id="text" spellcheck="false" value="https://en.wikipedia.org/wiki/QR_code" aria-label="Text every page will encode">
     </div>
@@ -292,6 +292,14 @@
         <h2>QR <em>LABYRINTH</em></h2>
         <p>A lone module wakes up orange and walks every corridor it can reach.</p>
         <span class="tag">depth-first</span>
+      </div>
+    </a>
+    <a class="card" data-href="hilbert.html" href="hilbert.html">
+      <div class="thumbwrap"><canvas id="th-hilbert" width="168" height="168"></canvas></div>
+      <div class="meta">
+        <h2>QR <em>HILBERT</em></h2>
+        <p>The ink files onto a space-filling, self-avoiding curve.</p>
+        <span class="tag">one line</span>
       </div>
     </a>
   </div>
@@ -1028,6 +1036,57 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         px(c, trailL[pL] % n, (trailL[pL] / n) | 0);
       c.fillStyle = '#ec7f1f';
       px(c, curL % n, (curL / n) | 0);
+    }
+    c.fillStyle = '#000';
+  }
+
+  // HILBERT: the code's ink as a truncated space-filling curve
+  c = ctx2d('th-hilbert');
+  if (c) {
+    var vertsH = [];
+    function sgnH(v) { return v > 0 ? 1 : v < 0 ? -1 : 0; }
+    function genH(x, y, ax, ay, bx, by) {
+      var w = Math.abs(ax + ay), h = Math.abs(bx + by);
+      var dax = sgnH(ax), day = sgnH(ay), dbx = sgnH(bx), dby = sgnH(by), i;
+      if (h === 1) { for (i = 0; i < w; i++) { vertsH.push([x, y]); x += dax; y += day; } return; }
+      if (w === 1) { for (i = 0; i < h; i++) { vertsH.push([x, y]); x += dbx; y += dby; } return; }
+      var ax2 = (ax / 2) | 0, ay2 = (ay / 2) | 0, bx2 = (bx / 2) | 0, by2 = (by / 2) | 0;
+      var w2 = Math.abs(ax2 + ay2), h2 = Math.abs(bx2 + by2);
+      if (2 * w > 3 * h) {
+        if (w2 % 2 && w > 2) { ax2 += dax; ay2 += day; }
+        genH(x, y, ax2, ay2, bx, by);
+        genH(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
+      } else {
+        if (h2 % 2 && h > 2) { bx2 += dbx; by2 += dby; }
+        genH(x, y, bx2, by2, ax2, ay2);
+        genH(x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
+        genH(x + (ax - dax) + (bx2 - dbx), y + (ay - day) + (by2 - dby),
+             -bx2, -by2, -(ax - ax2), -(ay - ay2));
+      }
+    }
+    var vwH = ((n + 1) / 2) | 0 || 1;
+    genH(0, 0, vwH, 0, 0, vwH);
+    var inkH = 0;
+    for (var yH = 0; yH < n; yH++) for (var xH = 0; xH < n; xH++)
+      if (dark(xH, yH)) inkH++;
+    var drawnH = 0, lastH = null;
+    for (var vH = 0; vH < vertsH.length && drawnH < inkH; vH++) {
+      var cxH = 2 * vertsH[vH][0], cyH = 2 * vertsH[vH][1];
+      if (vH > 0 && drawnH < inkH) {
+        var pxH = 2 * vertsH[vH - 1][0], pyH = 2 * vertsH[vH - 1][1];
+        px(c, (cxH + pxH) / 2, (cyH + pyH) / 2);
+        drawnH++;
+        lastH = [(cxH + pxH) / 2, (cyH + pyH) / 2];
+      }
+      if (drawnH < inkH) {
+        px(c, cxH, cyH);
+        drawnH++;
+        lastH = [cxH, cyH];
+      }
+    }
+    if (lastH) {
+      c.fillStyle = '#dfa04c';
+      px(c, lastH[0], lastH[1]);
     }
     c.fillStyle = '#000';
   }
