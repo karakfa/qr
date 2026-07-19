@@ -1,0 +1,12 @@
+{
+  "name": "qr-thumbs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Headless baker for the QR Playground gallery thumbnails",
+  "scripts": {
+    "gen": "node gen-thumbs.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.2"
+  }
+}
