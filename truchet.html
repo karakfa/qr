@@ -109,15 +109,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
  * is the maze. Because every tile always uses all four of its edge
  * midpoints, the arcs always link up smoothly across tile boundaries
  * into a set of closed loops and open paths that exactly cover the
- * grid. Every loop then traces itself in its own random color. Open
- * paths stay black.
+ * grid. Every curve — closed loop or open path — then traces itself
+ * in its own random color.
  * cfg: {dark: [[x,y]...], n, rand}
  */
 function createTruchetSim(cfg) {
   'use strict';
   var n = cfg.n;
   var rand = cfg.rand || Math.random;
-  var SLOW = 1.5;             // 50% slower reveal, start to finish
+  var SLOW = 2.5;             // well slower than real time, start to finish
   var LEAD = 0.4;
   var WEAVE_T = Math.max(2.0, Math.min(3.6, 1.6 + n * 0.045)) * SLOW;
   var GROW_DUR = 0.32 * SLOW;
@@ -207,18 +207,18 @@ function createTruchetSim(cfg) {
     components.push({ type: 'cycle', arcSeq: seq2 });
   }
 
-  // ---- every loop gets its own random color ----
+  // ---- every curve — loop or open path — gets its own random color ----
   var loops = components.filter(function (c) { return c.type === 'cycle'; });
   var paths = components.filter(function (c) { return c.type === 'path'; });
 
   var colorSet = {};           // tile*4+corner -> {order, len, hue}
   var longestLen = 0;
-  for (var li = 0; li < loops.length; li++) {
-    var loop = loops[li], hue = rand() * 360;
-    if (loop.arcSeq.length > longestLen) longestLen = loop.arcSeq.length;
-    for (var h = 0; h < loop.arcSeq.length; h++) {
-      var ar = arcs[loop.arcSeq[h]];
-      colorSet[ar.tile * 4 + ar.corner] = { order: h, len: loop.arcSeq.length, hue: hue };
+  for (var li = 0; li < components.length; li++) {
+    var comp = components[li], hue = rand() * 360;
+    if (comp.arcSeq.length > longestLen) longestLen = comp.arcSeq.length;
+    for (var h = 0; h < comp.arcSeq.length; h++) {
+      var ar = arcs[comp.arcSeq[h]];
+      colorSet[ar.tile * 4 + ar.corner] = { order: h, len: comp.arcSeq.length, hue: hue };
     }
   }
 
@@ -247,7 +247,7 @@ function createTruchetSim(cfg) {
       if (t <= weaveEnd + GAP) return 0;
       return clamp01((t - weaveEnd - GAP) / TRACE_T);
     },
-    colorSet: colorSet, coloredCount: loops.length, longestLen: longestLen,
+    colorSet: colorSet, coloredCount: components.length, longestLen: longestLen,
     tiles: n * n, loops: loops.length, paths: paths.length,
     totalArcs: arcs.length,
     stats: function () { return { t: t }; },
@@ -363,11 +363,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createTruc
       }
     }
 
-    // every loop traces itself in its own color over the finished maze —
-    // except the one or two smallest, left alone in plain black
+    // every curve — loop or open path — traces itself in its own color,
+    // twice the base stroke width so it reads clearly over the maze
     if (weaveDone) {
       var tp = sim.traceProgress();
-      ctx.lineWidth = 0.22;
+      ctx.lineWidth = 0.44;
       for (var key in sim.colorSet) {
         var info = sim.colorSet[key];
         if (info.order >= Math.floor(tp * info.len)) continue;
@@ -417,13 +417,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createTruc
         if (!sim.weaveDone())
           setStatus('weaving the maze · ' + sim.tiles + ' tiles');
         else
-          setStatus('coloring ' + sim.coloredCount + ' loops · '
+          setStatus('coloring ' + sim.coloredCount + ' curves · '
             + Math.round(sim.traceProgress() * 100) + '%');
       } else {
         phase = 'done';
         statusEl.className = '';
         statusEl.innerHTML = sim.tiles + ' tiles &middot; ' + sim.loops
-          + ' loops, each its own color &middot; ' + sim.paths + ' open paths';
+          + ' loops, ' + sim.paths + ' open paths &middot; every curve its own color';
       }
     }
     requestAnimationFrame(frame);
