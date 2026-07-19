@@ -119,8 +119,9 @@ function createDlaSim(cfg) {
   var rand = cfg.rand || Math.random;
   var LEAD = 0.5, GROW_T = 13, TAIL = 0.6;
 
-  var F = Math.round(2.9 * n);
-  if (F % 2 === 0) F += 1;                 // odd, so there's a center cell
+  var F = Math.round(2.3 * n);             // enough room for the dendrite,
+  if (F % 2 === 0) F += 1;                 // and the code reads bigger than 2.9n
+  var STICK = 0.5;                         // <1 packs the crystal tighter to fit
   var cx = F >> 1, cy = F >> 1;
   var off = (F - n) >> 1;                   // code sits centered in the field
 
@@ -139,10 +140,13 @@ function createDlaSim(cfg) {
     return (x > 0 && occ[y * F + x - 1]) || (x < F - 1 && occ[y * F + x + 1]) ||
            (y > 0 && occ[(y - 1) * F + x]) || (y < F - 1 && occ[(y + 1) * F + x]);
   }
+  // hard cap keeps the whole crystal clear of the frame; particles that
+  // would reach past it densify the periphery instead of growing wall arms
+  var Rlim = F / 2 - 4;
   var guard = 0;
   while (stuck < N && guard++ < N * 4000) {
-    var Rs = Math.min(F / 2 - 2, rmax + 8);
-    var Rk = Math.min(F / 2 - 1, rmax * 3 + 10);
+    var Rs = Math.min(Rlim + 2, rmax + 5);
+    var Rk = Math.min(F / 2 - 1, Rlim + 6);
     var a = rand() * 2 * Math.PI;
     var x = Math.round(cx + Rs * Math.cos(a)), y = Math.round(cy + Rs * Math.sin(a));
     var steps = 0;
@@ -156,7 +160,7 @@ function createDlaSim(cfg) {
         y = Math.round(cy + Rs * Math.sin(a));
         continue;
       }
-      if (!occ[y * F + x] && adj(x, y)) {
+      if (!occ[y * F + x] && dist <= Rlim && adj(x, y) && rand() < STICK) {
         occ[y * F + x] = 1; stuck++;
         order.push(y * F + x);
         if (dist > rmax) rmax = dist;
