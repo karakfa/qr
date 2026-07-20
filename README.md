@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, forty ways to fall apart.
+One QR code, forty-one ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -51,6 +51,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`histogram.html`](histogram.html) | Each connected blob of ink folds its cells onto each other and drops into a histogram of blob sizes | 4-connected components are measured; each folds (an accordion collapse to its centre) into one cell that flies to the bar for its size — x is blob size, bar height is how many blobs are that big; present sizes are packed into adjacent columns so the long tail stays compact (the three finder rings show up as size-24×3) |
 | [`countdown.html`](countdown.html) | The collection in reverse: the ink counts down 10→0, then flies into place as the finished code | Every frame uses exactly the ink count — a big pixel numeral plus a border frame that soaks up the surplus; cells that are black in two consecutive frames stay pinned, and only the difference moves, matched by minimal transport (greedy nearest + 2-opt) so the ink slides rather than scrambles |
 | [`spiral.html`](spiral.html) | The ink winds into one square spiral from the edge inward, then breathes — flowing in along its own path and back out | A pitch-2 square spiral (one thin arm, not nested squares); the ink is a sliding window on a track that covers every cell (inward arm plus a complementary arm back out), so it flows in then out with the count conserved; formation is fed outer-layer first |
+| [`game2048.html`](game2048.html) | The code plays 2048 with itself: every module is a tile seeded 1 or 2, and a so-so player shoves the whole board until the ink avalanches into big numbers | Full-board 2048 slides/merges (equal tiles double); a mediocre autoplayer with a 35% blunder rate, and no spawns, so the total value is conserved — ~450 tiles coalesce to ~35, top tile 128–256; 2048 palette with numbers where they fit |
 
 ## Notes
 
