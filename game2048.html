@@ -233,14 +233,16 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createGame
   function setStatus(msg, isErr) { statusEl.textContent = msg; statusEl.className = isErr ? 'err' : ''; }
   function ease(p) { return p < 0 ? 0 : p > 1 ? 1 : p * p * (3 - 2 * p); }
 
-  var PAL = ['#eee4da', '#ede0c8', '#f2b179', '#f59563', '#f67c5f', '#f65e3b',
-    '#edcf72', '#edcc61', '#edc850', '#edc53f', '#edc22e'];
+  // value 1 gets a cool colour so it reads clearly apart from the cream 2,
+  // then the classic 2048 warm ramp for 2, 4, 8, …
+  var PAL = ['#8fb3d9', '#eee4da', '#ede0c8', '#f2b179', '#f59563', '#f67c5f',
+    '#f65e3b', '#edcf72', '#edcc61', '#edc850', '#edc53f', '#edc22e'];
   function colorFor(v) {
     var e = Math.round(Math.log(v) / Math.LN2);
     if (e < PAL.length) return PAL[e];
     return 'hsl(' + ((e * 37) % 360) + ',70%,48%)';
   }
-  function textColor(v) { return v <= 2 ? '#776e65' : '#f9f6f2'; }
+  function textColor(v) { return v <= 4 ? '#5c5750' : '#f9f6f2'; }
 
   function buildSim(text) {
     var qr = qrcode(0, 'M'); qr.addData(text); qr.make();
@@ -353,7 +355,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createGame
   }
 
   function topTileAt(k) {
-    var f = sim.frames[Math.min(k, sim.moves)], m = 0;
+    var f = sim.frames[Math.max(0, Math.min(k, sim.moves))], m = 0;
     for (var i = 0; i < f.length; i++) if (f[i] > m) m = f[i];
     return m;
   }
