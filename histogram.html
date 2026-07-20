@@ -252,11 +252,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHist
   var sim = null, nMod = 0;
   var phase = 'hold';
   var holdStart = 0, lastFrame = 0;
-  var cell = 14, boardPx = 560;
+  var cell = 14, W = 560, canvasH = 560;
 
-  // chart geometry (pixels), recomputed on size
-  var padL = 30, padB = 26, padT = 12, padR = 12;
-  var cx0, cx1, cy0, cy1, chartW, chartH, colPitch, rowPitch, unitPx;
+  // layout (pixels), recomputed on size
+  var topH, histTop, baselineY, chartX0, unitSize, colPitch, rowPitch;
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg;
@@ -277,82 +276,76 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHist
   }
 
   function sizeCanvas() {
-    var W = nMod + 2 * M;
-    cell = Math.max(6, Math.floor(560 / W));
-    boardPx = W * cell;
+    var cols = Math.max(1, sim.cols), rows = Math.max(1, sim.rows);
+    var Wc = nMod + 2 * M;
+    cell = Math.max(6, Math.floor(560 / Wc));
+    W = Wc * cell;
+    topH = W;                                   // QR / fold region (square)
+    var gapR = Math.round(cell * 1.2);
+    var histH = Math.round(W * 0.72);           // histogram region
+    canvasH = topH + gapR + histH;
+
     var dpr = window.devicePixelRatio || 1;
-    canvas.width = boardPx * dpr;
-    canvas.height = boardPx * dpr;
-    canvas.style.width = boardPx + 'px';
+    canvas.width = W * dpr;
+    canvas.height = canvasH * dpr;
+    canvas.style.width = W + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // chart rect
-    padL = Math.max(26, cell * 2); padB = Math.max(22, cell * 1.6);
-    cx0 = padL; cx1 = boardPx - padR; cy1 = boardPx - padB; cy0 = padT;
-    chartW = cx1 - cx0; chartH = cy1 - cy0;
-    colPitch = chartW / Math.max(1, sim.cols);
-    rowPitch = chartH / Math.max(1, sim.rows);
-    unitPx = Math.min(colPitch, rowPitch) * 0.82;
+
+    // histogram sub-rect
+    var padL = Math.max(22, cell * 1.6), padR = cell, padT = cell * 0.4, padB = cell * 1.4;
+    histTop = topH + gapR;
+    var innerW = W - padL - padR, innerH = histH - padT - padB;
+    var colGap = 2;
+    unitSize = Math.max(3, Math.floor(Math.min(innerW / cols - colGap, innerH / rows - 1)));
+    colPitch = unitSize + colGap;
+    rowPitch = unitSize + 1;                     // one-pixel gap between stacked cells
+    var barsW = cols * colPitch;
+    chartX0 = padL + Math.max(0, (innerW - barsW) / 2);
+    baselineY = histTop + histH - padB;
   }
 
-  // QR module centre -> pixel
+  // QR module centre -> pixel (top region)
   function mpx(x) { return (x + M + 0.5) * cell; }
   function mpy(y) { return (y + M + 0.5) * cell; }
-  // chart unit -> pixel
-  function chx(u) { return cx0 + (u / sim.cols) * chartW; }
-  function chy(v) { return cy1 - (v / sim.rows) * chartH; }
+  // chart unit -> pixel (bottom region), tx in [0,cols], ty in [0,rows]
+  function chx(u) { return chartX0 + u * colPitch; }
+  function chy(v) { return baselineY - v * rowPitch; }
 
   function sq(px, py, s) { ctx.fillRect(px - s / 2, py - s / 2, s, s); }
 
-  // a folded unit: a stack of k sheets (thickness ~ size), front face black
-  function unit(px, py, s, k) {
-    var layers = Math.min(k, 7);
-    for (var l = layers - 1; l >= 1; l--) {
-      var off = l * s * 0.11;
-      var g = 150 + l * 12;
-      ctx.fillStyle = 'rgb(' + g + ',' + g + ',' + g + ')';
-      sq(px + off, py - off, s);
-    }
-    ctx.fillStyle = '#111';
-    sq(px, py, s);
-  }
-
   function drawAxes() {
-    ctx.strokeStyle = '#cfcdc8';
-    ctx.lineWidth = 1;
-    // horizontal count gridlines
-    var stepC = sim.rows <= 10 ? 2 : sim.rows <= 30 ? 5 : 10;
     ctx.fillStyle = '#9a978f';
-    ctx.font = Math.max(8, Math.round(cell * 0.8)) + 'px system-ui, Arial, sans-serif';
+    ctx.font = Math.max(8, Math.round(cell * 0.72)) + 'px system-ui, Arial, sans-serif';
+    // count gridlines
     ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    var stepC = sim.rows <= 10 ? 2 : sim.rows <= 30 ? 5 : 10;
     for (var v = stepC; v <= sim.rows; v += stepC) {
       var yy = chy(v);
-      ctx.strokeStyle = '#efece6';
-      ctx.beginPath(); ctx.moveTo(cx0, yy); ctx.lineTo(cx1, yy); ctx.stroke();
-      ctx.fillText(String(v), cx0 - 4, yy);
+      ctx.strokeStyle = '#efece6'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(chartX0, yy); ctx.lineTo(chartX0 + sim.cols * colPitch, yy); ctx.stroke();
+      ctx.fillText(String(v), chartX0 - 4, yy);
     }
-    // axes
-    ctx.strokeStyle = '#b9b6ae';
-    ctx.beginPath();
-    ctx.moveTo(cx0, cy0); ctx.lineTo(cx0, cy1); ctx.lineTo(cx1, cy1); ctx.stroke();
-    // x labels: sizes that have bars
-    ctx.fillStyle = '#7d7a72';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    var every = sim.sizes.length > 22 ? 2 : 1;
+    // baseline
+    ctx.strokeStyle = '#b9b6ae'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(chartX0 - 2, baselineY); ctx.lineTo(chartX0 + sim.cols * colPitch, baselineY); ctx.stroke();
+    // size labels
+    ctx.fillStyle = '#7d7a72'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    var every = sim.sizes.length > 24 ? 2 : 1;
     for (var s = 0; s < sim.sizes.length; s++) {
       if (s % every) continue;
-      ctx.fillText(String(sim.sizes[s].k), chx(s + 0.5), cy1 + 3);
+      ctx.fillText(String(sim.sizes[s].k), chx(s + 0.5), baselineY + 3);
     }
   }
 
   function draw() {
     ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, boardPx, boardPx);
+    ctx.fillRect(0, 0, W, canvasH);
 
     if (phase === 'hold') {
       ctx.fillStyle = '#111';
-      var n = nMod;
-      for (var i = 0; i < n * n; i++)
-        if (sim.black[i]) ctx.fillRect((i % n + M) * cell, ((i / n | 0) + M) * cell, cell + 0.5, cell + 0.5);
+      var n0 = nMod;
+      for (var i = 0; i < n0 * n0; i++)
+        if (sim.black[i]) ctx.fillRect((i % n0 + M) * cell, ((i / n0 | 0) + M) * cell, cell + 0.5, cell + 0.5);
       return;
     }
 
@@ -362,36 +355,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = createHist
     for (var e = 0; e < sim.comps.length; e++) {
       var cm = sim.comps[e];
       if (t < cm.foldStart) {
-        // still part of the code
+        // still part of the code, up in the QR region
         ctx.fillStyle = '#111';
         for (var a = 0; a < cm.cells.length; a++)
           ctx.fillRect((cm.cells[a] % nMod + M) * cell, ((cm.cells[a] / nMod | 0) + M) * cell, cell + 0.5, cell + 0.5);
       } else if (t < cm.flyStart) {
-        // folding: cells collapse to the anchor, staggered by depth
+        // folding: cells collapse onto the anchor, staggered by depth
         var apx = mpx(cm.ax), apy = mpy(cm.ay);
         ctx.fillStyle = '#111';
         for (var b = 0; b < cm.cells.length; b++) {
           var idx = cm.cells[b], gx = idx % nMod, gy = (idx / nMod) | 0;
           var dp = cm.depth[idx] || 0;
-          var st = cm.foldStart + (dp / (cm.maxDepth + 1)) * FOLD_frac();
-          var pe = ease((t - st) / (cm.foldStart + FOLD_dur() - st));
+          var st = cm.foldStart + (dp / (cm.maxDepth + 1)) * (0.85 * 0.4);
+          var pe = ease((t - st) / (cm.foldStart + 0.85 - st));
           sq(mpx(gx) + (apx - mpx(gx)) * pe, mpy(gy) + (apy - mpy(gy)) * pe, cell);
         }
       } else {
-        // flying / parked: a folded stack shrinking into its bar
-        var fpx = mpx(cm.ax), fpy = mpy(cm.ay);
-        var tpx = chx(cm.tx), tpy = chy(cm.ty);
+        // one folded cell flying down into its bar, shrinking to unit size
         var fe = ease((t - cm.flyStart) / (cm.flyEnd - cm.flyStart));
-        var px = fpx + (tpx - fpx) * fe, py = fpy + (tpy - fpy) * fe;
-        var s = cell + (unitPx - cell) * fe;
-        unit(px, py, s, cm.size);
+        var px = mpx(cm.ax) + (chx(cm.tx) - mpx(cm.ax)) * fe;
+        var py = mpy(cm.ay) + (chy(cm.ty) - mpy(cm.ay)) * fe;
+        var s = cell + (unitSize - cell) * fe;
+        ctx.fillStyle = fe < 1 ? '#111' : '#141414';
+        sq(px, py, s);
       }
     }
   }
-
-  // fold timing helpers (kept in sync with the sim's constants)
-  function FOLD_dur() { return 0.85; }
-  function FOLD_frac() { return 0.85 * 0.4; }
 
   function restart() {
     try { buildSim(input.value || ' '); }
