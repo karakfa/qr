@@ -197,11 +197,46 @@ function createCountdownSim(cfg) {
     return cells;  // already ascending
   }
 
+  // reorder B so B[i] sits near A[i] — a minimal-transport match that keeps
+  // each cell close to where it was in the previous frame (greedy nearest,
+  // then a 2-opt swap polish on squared distance to undo crossings)
+  function alignTo(A, B) {
+    var k = A.length;
+    var ax = new Int32Array(k), ay = new Int32Array(k), bx = new Int32Array(k), by = new Int32Array(k);
+    for (var i = 0; i < k; i++) { ax[i] = A[i] % N; ay[i] = (A[i] / N) | 0; bx[i] = B[i] % N; by[i] = (B[i] / N) | 0; }
+    var used = new Uint8Array(k), map = new Int32Array(k);
+    for (var a = 0; a < k; a++) {
+      var best = -1, bd = Infinity;
+      for (var j = 0; j < k; j++) {
+        if (used[j]) continue;
+        var dx = ax[a] - bx[j], dy = ay[a] - by[j], d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = j; }
+      }
+      used[best] = 1; map[a] = best;
+    }
+    function d2(i, m) { var dx = ax[i] - bx[m], dy = ay[i] - by[m]; return dx * dx + dy * dy; }
+    var improved = true, pass = 0;
+    while (improved && pass < 8) {
+      improved = false; pass++;
+      for (var p = 0; p < k; p++)
+        for (var q = p + 1; q < k; q++) {
+          var mp = map[p], mq = map[q];
+          if (d2(p, mq) + d2(q, mp) < d2(p, mp) + d2(q, mq) - 1e-9) { map[p] = mq; map[q] = mp; improved = true; }
+        }
+    }
+    var out = new Int32Array(k);
+    for (var o = 0; o < k; o++) out[o] = B[map[o]];
+    return out;
+  }
+
   var labels = ['10', '9', '8', '7', '6', '5', '4', '3', '2', '1', '0'];
   var frames = [];
   for (var li = 0; li < labels.length; li++) frames.push(numberArrangement(labels[li]));
   frames.push(qrArrangement());
   labels.push('QR');
+  // chain the minimal-transport match through the whole countdown
+  for (var fa = 0; fa < frames.length - 1; fa++)
+    frames[fa + 1] = alignTo(frames[fa], frames[fa + 1]);
 
   var nSteps = frames.length - 1;             // transitions
   var total = LEAD + nSteps * STEP + ENDHOLD;
