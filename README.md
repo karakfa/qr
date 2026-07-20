@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, forty-one ways to fall apart.
+One QR code, forty-two ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -52,6 +52,7 @@ variant will encode it (the links pass it along as `?text=`).
 | [`countdown.html`](countdown.html) | The collection in reverse: the ink counts down 10→0, then flies into place as the finished code | Every frame uses exactly the ink count — a big pixel numeral plus a border frame that soaks up the surplus; cells that are black in two consecutive frames stay pinned, and only the difference moves, matched by minimal transport (greedy nearest + 2-opt) so the ink slides rather than scrambles |
 | [`spiral.html`](spiral.html) | The ink winds into one square spiral from the edge inward, then breathes — flowing in along its own path and back out | A pitch-2 square spiral (one thin arm, not nested squares); the ink is a sliding window on a track that covers every cell (inward arm plus a complementary arm back out), so it flows in then out with the count conserved; formation is fed outer-layer first |
 | [`game2048.html`](game2048.html) | The code plays 2048 with itself: every module is a tile seeded 1 or 2, and a so-so player shoves the whole board until the ink avalanches into big numbers | Full-board 2048 slides/merges (equal tiles double); a mediocre autoplayer with a 35% blunder rate, and no spawns, so the total value is conserved — ~450 tiles coalesce to ~35, top tile 128–256; 2048 palette with numbers where they fit |
+| [`nonogram.html`](nonogram.html) | The code is the picross solution: it starts as a blank clued grid and a solver reconstructs it into view | Row/column run-clues are read off the QR; a per-line DP keeps only forced cells (filled in every clue-consistent arrangement), propagated row↔column via a dirty queue until it stalls, then guesses one cell from the solution and continues (~0–6 guesses); cells fill in deduction order, then clues fade to a clean scannable code |
 
 ## Notes
 
