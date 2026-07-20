@@ -197,33 +197,47 @@ function createCountdownSim(cfg) {
     return cells;  // already ascending
   }
 
-  // reorder B so B[i] sits near A[i] — a minimal-transport match that keeps
-  // each cell close to where it was in the previous frame (greedy nearest,
-  // then a 2-opt swap polish on squared distance to undo crossings)
+  // reorder B to match A: cells that are ON in BOTH frames stay exactly put
+  // (zero travel); only the difference moves. The leaving set (A\B) is matched
+  // to the entering set (B\A) by minimal transport — greedy nearest then a
+  // 2-opt swap polish on squared distance to undo crossings.
   function alignTo(A, B) {
     var k = A.length;
-    var ax = new Int32Array(k), ay = new Int32Array(k), bx = new Int32Array(k), by = new Int32Array(k);
-    for (var i = 0; i < k; i++) { ax[i] = A[i] % N; ay[i] = (A[i] / N) | 0; bx[i] = B[i] % N; by[i] = (B[i] / N) | 0; }
-    var used = new Uint8Array(k), map = new Int32Array(k);
-    for (var a = 0; a < k; a++) {
-      var best = -1, bd = Infinity;
-      for (var j = 0; j < k; j++) {
-        if (used[j]) continue;
-        var dx = ax[a] - bx[j], dy = ay[a] - by[j], d = dx * dx + dy * dy;
-        if (d < bd) { bd = d; best = j; }
-      }
-      used[best] = 1; map[a] = best;
+    var posB = new Int32Array(N * N).fill(-1);
+    for (var j = 0; j < k; j++) posB[B[j]] = j;
+    var used = new Uint8Array(k), map = new Int32Array(k), leaving = [];
+    for (var i = 0; i < k; i++) {
+      var slot = posB[A[i]];
+      if (slot >= 0) { map[i] = slot; used[slot] = 1; }   // black in both -> pinned
+      else leaving.push(i);
     }
-    function d2(i, m) { var dx = ax[i] - bx[m], dy = ay[i] - by[m]; return dx * dx + dy * dy; }
+    var entering = [];
+    for (var e = 0; e < k; e++) if (!used[e]) entering.push(e);
+    var L = leaving.length;
+    var ax = new Int32Array(L), ay = new Int32Array(L), ex = new Int32Array(L), ey = new Int32Array(L);
+    for (var p = 0; p < L; p++) { ax[p] = A[leaving[p]] % N; ay[p] = (A[leaving[p]] / N) | 0; }
+    for (var q = 0; q < L; q++) { ex[q] = B[entering[q]] % N; ey[q] = (B[entering[q]] / N) | 0; }
+    var usedE = new Uint8Array(L), asg = new Int32Array(L);
+    for (var a2 = 0; a2 < L; a2++) {
+      var best = -1, bd = Infinity;
+      for (var b2 = 0; b2 < L; b2++) {
+        if (usedE[b2]) continue;
+        var dx = ax[a2] - ex[b2], dy = ay[a2] - ey[b2], d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; best = b2; }
+      }
+      usedE[best] = 1; asg[a2] = best;
+    }
+    function d2(s, m) { var dx = ax[s] - ex[m], dy = ay[s] - ey[m]; return dx * dx + dy * dy; }
     var improved = true, pass = 0;
     while (improved && pass < 8) {
       improved = false; pass++;
-      for (var p = 0; p < k; p++)
-        for (var q = p + 1; q < k; q++) {
-          var mp = map[p], mq = map[q];
-          if (d2(p, mq) + d2(q, mp) < d2(p, mp) + d2(q, mq) - 1e-9) { map[p] = mq; map[q] = mp; improved = true; }
+      for (var s1 = 0; s1 < L; s1++)
+        for (var s2 = s1 + 1; s2 < L; s2++) {
+          var m1 = asg[s1], m2 = asg[s2];
+          if (d2(s1, m2) + d2(s2, m1) < d2(s1, m1) + d2(s2, m2) - 1e-9) { asg[s1] = m2; asg[s2] = m1; improved = true; }
         }
     }
+    for (var f = 0; f < L; f++) map[leaving[f]] = entering[asg[f]];
     var out = new Int32Array(k);
     for (var o = 0; o < k; o++) out[o] = B[map[o]];
     return out;
