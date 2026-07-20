@@ -1,6 +1,6 @@
 # QR Playground
 
-One QR code, thirty-seven ways to fall apart.
+One QR code, thirty-nine ways to fall apart.
 
 Every page renders a scannable QR code, holds it for four seconds, then lets a
 simulation take it apart. Each page is a **single self-contained HTML file** —
@@ -48,6 +48,8 @@ variant will encode it (the links pass it along as `?text=`).
 | [`circuit.html`](circuit.html) | The same salesman under taxicab rules: one closed loop that only ever turns at right angles | Manhattan (L1) distance instead of Euclidean; nearest-neighbour + 2-opt on the L1 metric, each edge drawn as an orthogonal elbow (bend orientation alternating by parity) so the tour reads as a circuit of traces; ink exactly conserved |
 | [`momentum.html`](momentum.html) | The taxicab salesman gains inertia: turning costs, so the loop holds its heading and runs in long straight traces | Cost is Manhattan distance plus a per-corner penalty `W·(1−cos θ)`; momentum-aware nearest-neighbour then 2-opt to a true local optimum on the combined cost (a reversal only changes the turn cost at its four cut endpoints); `W` tunable via `?w=` (default 3), elbows chosen to continue the arrival axis |
 | [`crossword.html`](crossword.html) | The code turns into a numbered crossword and a solver fills it — read the across answers to recover the link | Black modules become blocked squares (the black-square pattern is the code); white cells are numbered by the standard across/down rule; the decoded source string is written into the cells in reading order, so each across entry spells a consecutive slice of it; ink exactly conserved |
+| [`histogram.html`](histogram.html) | Each connected blob of ink folds its cells onto each other and drops into a histogram of blob sizes | 4-connected components are measured; each folds (an accordion collapse to its centre) into one cell that flies to the bar for its size — x is blob size, bar height is how many blobs are that big; present sizes are packed into adjacent columns so the long tail stays compact (the three finder rings show up as size-24×3) |
+| [`countdown.html`](countdown.html) | The collection in reverse: the ink counts down 10→0, then flies into place as the finished code | Every frame uses exactly the ink count — a big pixel numeral plus a border frame that soaks up the surplus; cells that are black in two consecutive frames stay pinned, and only the difference moves, matched by minimal transport (greedy nearest + 2-opt) so the ink slides rather than scrambles |
 
 ## Notes
 
