@@ -181,11 +181,14 @@ function createSpiralSim(cfg) {
   var trackIndex = new Int32Array(NN);
   for (var ti = 0; ti < NN; ti++) trackIndex[trackArr[ti]] = ti;
 
-  // ---- build assignment: dark cells -> outer window slots [0, ink),
-  // each to the slot matching its rank along the track (short flights) ----
+  // ---- build assignment: consume the dark cells outer-layer first (by ring
+  // distance from the edge), not by nearness — so the spiral is fed from the
+  // outside in even for cells that don't sit on the inward arm. Within a
+  // layer, order by track position so the fill still reads as a spiral. ----
+  function ringOf(idx) { var x = idx % n, y = (idx / n) | 0; return Math.min(x, y, n - 1 - x, n - 1 - y); }
   var darkIdx = [];
   for (var d2 = 0; d2 < cfg.dark.length; d2++) darkIdx.push(cfg.dark[d2][1] * n + cfg.dark[d2][0]);
-  darkIdx.sort(function (p, q) { return trackIndex[p] - trackIndex[q]; });
+  darkIdx.sort(function (p, q) { return ringOf(p) - ringOf(q) || trackIndex[p] - trackIndex[q]; });
 
   var per = DRAW_T / Math.max(1, ink);
   var movers = [];
